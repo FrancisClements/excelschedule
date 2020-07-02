@@ -1,11 +1,14 @@
 #Backend
 import pandas as pd, xlsxwriter as xl
-import os, re
+import os, re, json
 from datetime import datetime
-
 
 class SchedMaker:
     def __init__(self):
+        #read the JSON
+        self.init_sched()
+
+    def init_sched(self):
         self.df = pd.read_excel('sched_tbl.xlsx', index_col = 'CODE')                                 #PARAMETERS: 'CODE' (header on excel)
         time_list = self.df['FROM TIME'].to_list() + self.df['TO TIME'].to_list()                     #PARAMETERS: FROM TIME, TO TIME (headers on excel)
         day_mode = 'PARTIAL'                                                                          #PARAMETERS: 'FULL', 'PARTIAL', 'INITIAL'
@@ -61,11 +64,10 @@ class SchedMaker:
         
         return t
 
-
 class ExcelWriter:
     def __init__(self, schedule):
         self.schedule = schedule
-        if os.path.isfile('HAUsched.xlsx'):
+        if os.path.isfile('HAUsched.xlsx'):                                                           #PARAMETER: filename (HARDCODED)
             os.remove('HAUsched.xlsx')
 
         self.book = xl.Workbook('HAUsched.xlsx')
@@ -85,13 +87,14 @@ class ExcelWriter:
     def new(self):
         self.format_list = {
             'BOLD': {'bold':True},
-            'CENTER': {'align': 'center', 'valign': 'vcenter'}
+            'CENTER': {'align': 'center', 'valign': 'vcenter'},
+            'BORDER': {'border': 1}
         }
         self.color = {
             'ACCENT_LIGHT': '#d9d9d9',
             'ACCENT_DARK': '#bfbfbf'
         }
-        self.preset = {'header': [['COLOR', 'ACCENT_LIGHT'], 'BOLD', 'CENTER']}
+        self.preset = {'header': [['COLOR', 'ACCENT_LIGHT'], 'BOLD', 'CENTER', 'BORDER']}
         self.cell_height = 16
         self.cell_width = 12
     
@@ -101,13 +104,29 @@ class ExcelWriter:
     def set_row(self, pos, width):
         self.sheet.set_row(pos, width)
 
+    def border_format(self, flag_list):
+        if len(flag_list) == 0:
+            return {'border': 1}
+        else:
+            format_dict = {'border': 1} #cell border
+            for flag in flag_list:
+                if flag in ['top', 'bottom', 'left', 'right']:
+                    format_dict[flag] = 0
+                elif re.search(r'^#', flag):
+                    format['color'] = flag
+        
+        return format_dict
+
     def cell_format(self, order_list):
         #format_arr = list
         #changes format into str
         format_list = order_list.copy()
         for index, x in enumerate(format_list):
             if isinstance(x, list):
-                format_list[index] = {'fg_color': self.color[x[1]]}
+                if x[0] == 'COLOR':
+                    format_list[index] = {'fg_color': x[1]} if re.search(r'^#', x[1]) else {'fg_color': self.color[x[1]]}
+                elif x[0] == 'BORDER':
+                    format_list[index] = self.border_format(x[1:]) #activates self.border_format if it's inputted as list
             else:
                 format_list[index] = self.format_list[x] #searches through self.format list dict
 
@@ -132,14 +151,17 @@ class ExcelWriter:
         merge_n = 1
         start_cell = [0,0]
         #cell format
-        even_color = self.cell_format([['COLOR', 'ACCENT_LIGHT'], 'CENTER'])
-        odd_color = self.cell_format([['COLOR', 'ACCENT_DARK'], 'CENTER'])
+        hour_format = self.cell_format([['COLOR', 'ACCENT_LIGHT'], 'BOLD', 'CENTER', ['BORDER', 'right']])
+        even_color = self.cell_format([['COLOR', 'ACCENT_LIGHT'], 'CENTER', 'BORDER'])
+        odd_color = self.cell_format([['COLOR', 'ACCENT_DARK'], 'CENTER', 'BORDER'])
         cell_switch = True #makes a coloring switch regardless of its position
 
         for i, time in enumerate(self.schedule.time_list):
             #writes the time
-            self.sheet.write(self.row, self.col+1, time, self.cell_format([['COLOR', 'ACCENT_LIGHT'], 'BOLD', 'CENTER']))
+            self.sheet.write(self.row, self.col+1, time, hour_format)
+
             cell_color = even_color if cell_switch else odd_color
+            #write the hours
             #detects if last hour matches current hr
             if i != 0 and time[:2] == last_hr:
                 if merge_n == 1: #sets starting cell
@@ -170,13 +192,11 @@ class ExcelWriter:
         self.row -= len(self.schedule.time_list)
         index_list = self.get_subject(self.schedule.df.index)
         for cell_index in index_list:
-            print(cell_index)
             col = self.col + cell_index[1]
             row_start = self.row + cell_index[2]
             row_end = self.row + cell_index[3]
-            self.sheet.merge_range(row_start, col, row_end, col, cell_index[0], self.cell_format(['CENTER']))
-            print('--')
-
+            self.sheet.merge_range(row_start, col, row_end, col, cell_index[0], self.cell_format(['CENTER', ['COLOR', '#da9694']]))
+ 
     def get_subject(self, subjects):
         time_index = 0
         printed_sub = []
@@ -196,11 +216,11 @@ class ExcelWriter:
             for col_index, day in enumerate(self.schedule.day_list): #list of days in a week
                 if self.schedule.regex_day(col_index, subj_day):
                     if isinstance(subj_time[0], list):
-                            row_start = self.schedule.time_list.index(subj_time[time_index][0] + 'm') #PARAMETER: Added 'm' for am/pm (HARDCODED)
-                            row_end = self.schedule.time_list.index(subj_time[time_index][1] + 'm')   #PARAMETER: Added 'm' for am/pm (HARDCODED)
+                            row_start = self.schedule.time_list.index(subj_time[time_index][0] + 'm') #PARAMETER: Added 'm' for am/pm, was 'a/p' (HARDCODED)
+                            row_end = self.schedule.time_list.index(subj_time[time_index][1] + 'm')   #PARAMETER: Added 'm' for am/pm, was 'a/p' (HARDCODED)
                     else:
-                        row_start = self.schedule.time_list.index(subj_time[0] + 'm')                 #PARAMETER: Added 'm' for am/pm (HARDCODED)
-                        row_end = self.schedule.time_list.index(subj_time[1] + 'm')                   #PARAMETER: Added 'm' for am/pm (HARDCODED)
+                        row_start = self.schedule.time_list.index(subj_time[0] + 'm')                 #PARAMETER: Added 'm' for am/pm, was 'a/p' (HARDCODED)
+                        row_end = self.schedule.time_list.index(subj_time[1] + 'm')                   #PARAMETER: Added 'm' for am/pm, was 'a/p' (HARDCODED)
                                      
                     yield subject, col_index, row_start, row_end           
             time_index += 1   
@@ -209,7 +229,7 @@ class ExcelWriter:
         print('CURRENT POS (col, row)', end=': ')
         print(self.col, self.row)
 
-    def get_time_day(self, subject):       
+    def get_time_day(self, subject):
         subj_time = [self.schedule.df.loc[subject][x + ' TIME'] for x in ['FROM', 'TO']]          #PARAMETERS: 'FROM TIME', 'TO TIME' (headers)
         subj_day = self.schedule.df.loc[subject]['DAYS'] #gets class days                         #PARAMETER: DAYS (header on Excel)
 
@@ -220,4 +240,5 @@ class ExcelWriter:
 
         return subj_time, subj_day
 
-e = ExcelWriter(SchedMaker())
+def create_schedule():
+    e = ExcelWriter(SchedMaker())

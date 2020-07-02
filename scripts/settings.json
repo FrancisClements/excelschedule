@@ -1,0 +1,17 @@
+{
+   "_metadata": "07/02/2020 at 10:07PM",
+   "data": {
+      "colors": [],
+      "header": "1ST SEM - EMC202",
+      "name": "NAME"
+   },
+   "files": {
+      "input_file": "sched_tbl.xlsx",
+      "output_file": "HAUsched.xlsx"
+   },
+   "options": {
+      "enable_header": true,
+      "enable_hours": true,
+      "enable_name": false
+   }
+}
