@@ -10,30 +10,30 @@ class SchedMaker:
         time_list = self.df['FROM TIME'].to_list() + self.df['TO TIME'].to_list()                     #PARAMETERS: FROM TIME, TO TIME (headers on excel)
         day_mode = 'PARTIAL'                                                                          #PARAMETERS: 'FULL', 'PARTIAL', 'INITIAL'
 
-        self.get_time_list()
         self.time_list = self.time_sort(time_list) #sorts the time
         self.day_list = self.get_day_list(day_mode)
         # print(self.hr_list, self.time_list, sep='\n')
 
     def get_day_list(self, mode):
-        week_list = {
+        self.week_list = {
             'FULL': ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'],
             'INITIAL': ['M', 'T', 'W', 'TH', 'F', 'S']
         }
-        week_list['PARTIAL'] = [x[:3].upper() for x in week_list['FULL']] #Tuesday = Tue
+        self.week_list['PARTIAL'] = [x[:3].upper() for x in self.week_list['FULL']] #Tuesday = Tue
         word = ''.join(self.df['DAYS'])
-        chosen_list = week_list[mode]
+        chosen_list = self.week_list[mode]
 
         #removes any excess days
-        for i, day in enumerate(week_list['FULL']):
-            re_filter = self.regex_day(day, word)
+        for i in range(len(self.week_list['FULL'])):
+            re_filter = self.regex_day(i, word)
             if not re_filter:
                 del chosen_list[i]
 
         return chosen_list 
 
-    def regex_day(self, day, word):
+    def regex_day(self, index, word):
         #returns list of subjects that is on that day.
+        day = self.week_list['FULL'][index]
         if day == 'Thursday':
             day_filter = re.compile(r'(?i:(t(?=[^u])))')
         elif day == 'Tuesday':
@@ -42,11 +42,6 @@ class SchedMaker:
             day_filter = re.compile(rf'(?i:({day[0]}({day[1:3]}({day[3:]})?)?))') #e.g.(M(on(day)?)?)
 
         return day_filter.search(word)
-
-    def get_time_list(self):#converts dataframe into a list
-        self.df_list = []
-        for sub in self.df.iterrows():
-            self.df_list.append(sub)
 
     def time_sort(self, t):
         t = list(set(t))
@@ -62,7 +57,7 @@ class SchedMaker:
 
         #covnerts into string
         for i, time_in in enumerate(t):
-            t[i] = time_in.strftime(str_format)
+            t[i] = time_in.strftime(str_format).lower()                                               #Set to lower case PM -> pm
         
         return t
 
@@ -174,6 +169,7 @@ class ExcelWriter:
         self.col += 2
         self.row -= len(self.schedule.time_list)
         self.sheet.write(self.row, self.col, 'koko ni')
+        time_index = 0
         printed_sub = []
 
         #process: nested for loops (subject nests time)
@@ -185,24 +181,32 @@ class ExcelWriter:
                 continue
 
             subj_time = [self.schedule.df.loc[subject][x + ' TIME'] for x in ['FROM', 'TO']]          #PARAMETERS: 'FROM TIME', 'TO TIME' (headers)
+            subj_day = self.schedule.df.loc[subject]['DAYS'] #gets class days                         #PARAMETER: DAYS (header on Excel)
 
-            for day in self.schedule.day_list: #list of days in a week
-                subj_day = self.schedule.df.loc[subject]['DAYS'] #gets class days                     #PARAMETER: DAYS (header on Excel)
+            #activates if the subject has duplicate due to having different time/day/classroom
+            if isinstance(subj_day, pd.core.series.Series): 
+                time_index = 0
+                subj_day = ''.join(subj_day)
+                subj_time = [[x,y] for x,y in zip(subj_time[0], subj_time[1])]
 
-                #activates if the subject has duplicate due to having different time/day/classroom
-                if isinstance(subj_day, pd.core.series.Series): 
-                    subj_day = ''.join(subj_day)
-                    subj_time = [[x,y] for x,y in zip(subj_time[0], subj_time[1])]
-
-                if self.schedule.regex_day(day, subj_day):                
-                    print(day, end=' ')
-
-
-            print(subj_time, end=' ')
+            for index, day in enumerate(self.schedule.day_list): #list of days in a week
+                if self.schedule.regex_day(index, subj_day):
+                    if isinstance(subj_time[0], list):
+                            col_index = self.schedule.time_list.index(subj_time[time_index][0] + 'm') #PARAMETER: Added 'm' for am/pm (HARDCODED)
+                            row_index = self.schedule.time_list.index(subj_time[time_index][1] + 'm') #PARAMETER: Added 'm' for am/pm (HARDCODED)
+                            print(day, index, col_index, row_index)   
+                    else:
+                        col_index = self.schedule.time_list.index(subj_time[0] + 'm')                 #PARAMETER: Added 'm' for am/pm (HARDCODED)
+                        row_index = self.schedule.time_list.index(subj_time[1] + 'm')                 #PARAMETER: Added 'm' for am/pm (HARDCODED)
+                        print(day, index, col_index, row_index)                
+                    
+            time_index += 1
+            print(subj_time, 'day-mark:', subj_day)
             print('')       
 
 
         #formatting the columns
+        print('CURRENT POS (col, row)')
         print(self.col, self.row)
 
 e = ExcelWriter(SchedMaker())
