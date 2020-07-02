@@ -164,49 +164,60 @@ class ExcelWriter:
                 self.sheet.merge_range(start_cell[0], start_cell[1], self.row-1, self.col, int(last_hr), cell_color)
             else:
                 self.sheet.write_number(self.row-1, self.col, int(last_hr), cell_color)
-                    
+
     def write_subject(self):
         self.col += 2
         self.row -= len(self.schedule.time_list)
-        self.sheet.write(self.row, self.col, 'koko ni')
+        index_list = self.get_subject(self.schedule.df.index)
+        for cell_index in index_list:
+            print(cell_index)
+            col = self.col + cell_index[1]
+            row_start = self.row + cell_index[2]
+            row_end = self.row + cell_index[3]
+            self.sheet.merge_range(row_start, col, row_end, col, cell_index[0], self.cell_format(['CENTER']))
+            print('--')
+
+    def get_subject(self, subjects):
         time_index = 0
         printed_sub = []
 
         #process: nested for loops (subject nests time)
-        for subject in self.schedule.df.index: #list of subjects
+        for subject in subjects: #list of subjects
             if subject not in printed_sub: #skip if duplicate
                 printed_sub.append(subject)   
-                print(subject, end=': ')
             else:
                 continue
 
-            subj_time = [self.schedule.df.loc[subject][x + ' TIME'] for x in ['FROM', 'TO']]          #PARAMETERS: 'FROM TIME', 'TO TIME' (headers)
-            subj_day = self.schedule.df.loc[subject]['DAYS'] #gets class days                         #PARAMETER: DAYS (header on Excel)
+            subj_time, subj_day = self.get_time_day(subject) #gets time and day
 
-            #activates if the subject has duplicate due to having different time/day/classroom
-            if isinstance(subj_day, pd.core.series.Series): 
+            if isinstance(subj_time[0], list): #if the subject has two different time ranges
                 time_index = 0
-                subj_day = ''.join(subj_day)
-                subj_time = [[x,y] for x,y in zip(subj_time[0], subj_time[1])]
 
-            for index, day in enumerate(self.schedule.day_list): #list of days in a week
-                if self.schedule.regex_day(index, subj_day):
+            for col_index, day in enumerate(self.schedule.day_list): #list of days in a week
+                if self.schedule.regex_day(col_index, subj_day):
                     if isinstance(subj_time[0], list):
-                            col_index = self.schedule.time_list.index(subj_time[time_index][0] + 'm') #PARAMETER: Added 'm' for am/pm (HARDCODED)
-                            row_index = self.schedule.time_list.index(subj_time[time_index][1] + 'm') #PARAMETER: Added 'm' for am/pm (HARDCODED)
-                            print(day, index, col_index, row_index)   
+                            row_start = self.schedule.time_list.index(subj_time[time_index][0] + 'm') #PARAMETER: Added 'm' for am/pm (HARDCODED)
+                            row_end = self.schedule.time_list.index(subj_time[time_index][1] + 'm')   #PARAMETER: Added 'm' for am/pm (HARDCODED)
                     else:
-                        col_index = self.schedule.time_list.index(subj_time[0] + 'm')                 #PARAMETER: Added 'm' for am/pm (HARDCODED)
-                        row_index = self.schedule.time_list.index(subj_time[1] + 'm')                 #PARAMETER: Added 'm' for am/pm (HARDCODED)
-                        print(day, index, col_index, row_index)                
-                    
-            time_index += 1
-            print(subj_time, 'day-mark:', subj_day)
-            print('')       
-
+                        row_start = self.schedule.time_list.index(subj_time[0] + 'm')                 #PARAMETER: Added 'm' for am/pm (HARDCODED)
+                        row_end = self.schedule.time_list.index(subj_time[1] + 'm')                   #PARAMETER: Added 'm' for am/pm (HARDCODED)
+                                     
+                    yield subject, col_index, row_start, row_end           
+            time_index += 1   
 
         #formatting the columns
-        print('CURRENT POS (col, row)')
+        print('CURRENT POS (col, row)', end=': ')
         print(self.col, self.row)
+
+    def get_time_day(self, subject):       
+        subj_time = [self.schedule.df.loc[subject][x + ' TIME'] for x in ['FROM', 'TO']]          #PARAMETERS: 'FROM TIME', 'TO TIME' (headers)
+        subj_day = self.schedule.df.loc[subject]['DAYS'] #gets class days                         #PARAMETER: DAYS (header on Excel)
+
+        #activates if the subject has duplicate due to having different time/day/classroom
+        if isinstance(subj_day, pd.core.series.Series): 
+            subj_day = ''.join(subj_day)
+            subj_time = [[x,y] for x,y in zip(subj_time[0], subj_time[1])]
+
+        return subj_time, subj_day
 
 e = ExcelWriter(SchedMaker())
