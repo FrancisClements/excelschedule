@@ -3,15 +3,26 @@ import pandas as pd, xlsxwriter as xl
 import os, re, json
 from datetime import datetime
 
+filename = 'settings.json'
+#checks if the file exists (required)
+if not os.path.isfile(filename):
+    raise Exception('JSON file is missing.')
+
+#loads JSON
+with open(filename, 'r') as f:
+    json_data = json.load(f)
+
+
 class SchedMaker:
-    def __init__(self):
+    def __init__(self, json_data):
         #read the JSON
+        self.data = json_data
         self.init_sched()
 
     def init_sched(self):
-        self.df = pd.read_excel('sched_tbl.xlsx', index_col = 'CODE')                                 #PARAMETERS: 'CODE' (header on excel)
+        self.df = pd.read_excel(self.data['files']['input_file'], index_col = 'CODE')                 #PARAMETERS: 'CODE' (header on excel)
         time_list = self.df['FROM TIME'].to_list() + self.df['TO TIME'].to_list()                     #PARAMETERS: FROM TIME, TO TIME (headers on excel)
-        day_mode = 'PARTIAL'                                                                          #PARAMETERS: 'FULL', 'PARTIAL', 'INITIAL'
+        day_mode = self.data['options']['day_mode']                                                   #PARAMETERS: 'FULL', 'PARTIAL', 'INITIAL'
 
         self.time_list = self.time_sort(time_list) #sorts the time
         self.day_list = self.get_day_list(day_mode)
@@ -23,7 +34,7 @@ class SchedMaker:
             'INITIAL': ['M', 'T', 'W', 'TH', 'F', 'S']
         }
         self.week_list['PARTIAL'] = [x[:3].upper() for x in self.week_list['FULL']] #Tuesday = Tue
-        word = ''.join(self.df['DAYS'])
+        word = ''.join(self.df['DAYS'])                                                               #PARAMETER: DAY (header)
         chosen_list = self.week_list[mode]
 
         #removes any excess days
@@ -48,10 +59,10 @@ class SchedMaker:
 
     def time_sort(self, t):
         t = list(set(t))
-        str_format = '%I:%M%p'                                                                        #FORMAT EXAMPLE: 4:45pm
+        str_format = self.data['options']['time_format']                                              #PARAMTER: Time Format; FORMAT EXAMPLE: 4:45pm
         #converts into datetime object and sort
         for i, time_in in enumerate(t):
-            time_in += 'm'
+            time_in += 'm'                                                                            #PARAMETER: added 'm' (8:00a -> 8:am) HARDCODED
             t[i] = datetime.strptime(time_in, str_format)
 
         t.sort()
@@ -65,12 +76,13 @@ class SchedMaker:
         return t
 
 class ExcelWriter:
-    def __init__(self, schedule):
+    def __init__(self, schedule, json_data):
+        self.data = json_data
         self.schedule = schedule
-        if os.path.isfile('HAUsched.xlsx'):                                                           #PARAMETER: filename (HARDCODED)
-            os.remove('HAUsched.xlsx')
+        if os.path.isfile(self.data['files']['output_file']):                                         #PARAMETER: filename (HARDCODED)
+            os.remove(self.data['files']['output_file'])
 
-        self.book = xl.Workbook('HAUsched.xlsx')
+        self.book = xl.Workbook(self.data['files']['output_file'])
         self.sheet = self.book.add_worksheet()
         self.offset = [0,0]
         self.row = self.offset[0]
@@ -241,4 +253,7 @@ class ExcelWriter:
         return subj_time, subj_day
 
 def create_schedule():
-    e = ExcelWriter(SchedMaker())
+    sched = SchedMaker(json_data)
+    e = ExcelWriter(sched, json_data)
+
+# create_schedule()
