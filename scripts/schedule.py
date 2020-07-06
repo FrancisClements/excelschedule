@@ -256,4 +256,5 @@ def create_schedule():
     sched = SchedMaker(json_data)
     e = ExcelWriter(sched, json_data)
 
-# create_schedule()
+if __name__ == "__main__":
+    create_schedule()
