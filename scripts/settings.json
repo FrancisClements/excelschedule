@@ -1,5 +1,5 @@
 {
-    "_metadata": "07/06/2020 at 10:45PM",
+    "_metadata": "07/08/2020 at 11:15AM",
     "data": {
         "colors": {},
         "header": "1ST SEM - EMC202",
@@ -7,7 +7,7 @@
     },
     "files": {
         "input_file": "E:/Downloads/sched_tbl.xlsx",
-        "output_file": "E:/Downloads/ara_ara.xlsx"
+        "output_file": "E:/Downloads/psst.xlsx"
     },
     "options": {
         "day_mode": "PARTIAL",
@@ -25,7 +25,7 @@
     "widget_settings": {
         "BUTTON_SIZE": {
             "default": {
-                "x": 20,
+                "x": 15,
                 "y": 5
             },
             "form": {
