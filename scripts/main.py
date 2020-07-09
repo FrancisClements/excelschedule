@@ -159,6 +159,7 @@ class Options(Frame):
         self.data = data
         self.master = master
         self.frames = []
+        self.colors = {}
         self.main_k = Kinter(self, self.frames)
         super().__init__(master.root)
 
@@ -174,7 +175,7 @@ class Options(Frame):
             self.input_data[data_vars] = StringVar()
 
     def render(self):
-        self.pack(fill = 'both', expand = 1, pady = 50, padx = 50)
+        self.pack(fill = 'both', expand = 1, pady = 50, padx = 25)
         '''
         LAYOUT OF OPTIONS >>
                         V
@@ -187,11 +188,12 @@ class Options(Frame):
                     BUTTONS
                     
         '''
+        self.main_k.grid_config(pos = [(3,4), 'x'])
         #title/desc LEFT-----------------------------
         tl = self.main_k.label('Customize', theme = 'header')
         dl = self.main_k.label('Set up options to make your schedule look better')
         self.main_k.widget_grid(tl, pos = [0,0], span = [2,1], snap = W)
-        self.main_k.widget_grid(dl, pos = [0,1], span = [2,1], padding = [10,0], snap = W)
+        self.main_k.widget_grid(dl, pos = [0,1], span = [2,1], padding = [10,0], snap = NW)
 
         #left & right frames-------------------------
         self.main_k.widget_grid(self.left_frame(), pos = [0,2], snap = NW)
@@ -204,9 +206,9 @@ class Options(Frame):
         #title/desc RIGHT----------------------------
         tr = self.main_k.label('Color Selection', theme = 'header')
         dr = self.main_k.label('Pick a color of your choice that corresponds to your subject\n'
-                'If we got the wrong category, feel free to change it below')
+                'Selected colors WILL NOT BE SAVED if you change the category.')
         self.main_k.widget_grid(tr, pos = [4,0], padding = [5,0], snap = W)
-        self.main_k.widget_grid(dr, pos = [4,1], padding = [15,0], snap = W)
+        self.main_k.widget_grid(dr, pos = [4,1], padding = [15,0], snap = NW)
                     
         #color selection----------------------------
         self.main_k.widget_grid(self.color_frame(), pos = [4,2], snap = NSEW)
@@ -219,6 +221,10 @@ class Options(Frame):
         print('\n--- INPUT DATA')
         for inputs in self.input_data:
             print(inputs, ':',  self.input_data[inputs].get())
+
+        print('\n--- COLORS')
+        for key, value in zip(self.colors, self.colors.values()):
+            print(key, ':', value.get())
     
     def left_frame(self):
         str_format = re.compile(r'[\\/:\:\?><\|\*]')
@@ -312,8 +318,51 @@ class Options(Frame):
 
     def color_frame(self):
         widgets = []
-        f = Frame(height = 100, width = 100, master = self, pady = 5, padx = 5)
+        f = Frame(height = 100, width = 100, master = self, pady = 5, padx = 5, bg = LIGHT_GREY1)
         frame = Kinter(f, widgets)
+        char_limit = 12
+
+        def color_menu():
+            self.colors = {}
+            color_widgets = []
+            c = frame.labelframe('Colors', padding = [10,5])
+            colors = Kinter(c, color_widgets)
+
+            #creates all subjects
+            printed_subs = []
+            for subject in self.pd[self.input_data['subject_key'].get()]:
+                #removes any duplicate labels
+                if subject not in printed_subs:
+                    printed_subs.append(subject)
+                else:
+                    continue
+
+                self.colors[subject] = StringVar()
+                #limits number of characters to 10.
+                if isinstance(subject, str) and len(subject) > char_limit:
+                    full_subject = subject
+                    subject = subject[:char_limit] + '...'
+                    tooltip(colors.label(subject), full_subject)
+                else:
+                    colors.label(subject)
+
+                #color picker goes here
+                colors.color_picker(var = self.colors[subject])
+
+
+            #renders all subjects inside frame
+            colors.grid_config(pos = [[0,2],'x'])
+
+            widgets_len = len(color_widgets)
+            for i, widget in enumerate(color_widgets):
+                #specified rendering for showing 2 widgets
+                if widgets_len <= 4:
+                    colors.widget_grid(widget, pos = [i%2, i//2], snap = NW, padding = [0, 2])
+                else:
+                    colors.widget_grid(widget, pos = [i%4, i//4], snap = NW, padding = [0, 2])
+
+            #renders the color menu
+            frame.widget_grid(c, pos = [0,2], padding = [10, (5,0)], snap = 'NSEW')
 
         #excel data using pandas
         self.pd = read_file(data['files']['input_file'])
@@ -321,35 +370,18 @@ class Options(Frame):
 
         #dropdown menu------------------------
         dd_t = frame.label('Subject')
-        dd = frame.dropdown(headers, 1, var = self.input_data['subject_key'], 
-                state = 'readonly')
+        tooltip(dd_t, 'This will show up to your schedule')
+        dd = frame.dropdown(headers, 0, var = self.input_data['subject_key'], 
+                state = 'readonly', cmd = color_menu)
 
         #render for dropdown
-        # frame.widget_grid(dd_t, pos = [0,1], padding = [10, (5,0)], snap = W)
-        # frame.widget_grid(dd, pos = [0,2], padding = [10, 0], snap = W)
-        frame.widget_pack(dd_t, padding = [10, (5,0)], expand_wid = 1, anchor = 'w')
-        frame.widget_pack(dd, padding = [10,0], expand_wid = 1, anchor = 'w')
-            
-        #color selection----------------------
-        color_widgets = []
-        c = frame.labelframe('Colors', padding = [0,5])
-        colors = Kinter(c, color_widgets)
-        #creates all subjects
-        for subject in self.pd[self.input_data['subject_key'].get()]:
-            colors.label(subject)
-
-        #renders all subjects inside frame
-        colors.grid_config(pos = [[0,1],0])
-        for i, widget in enumerate(color_widgets):
-            colors.widget_grid(widget, pos = [i%2, i//2], snap = NSEW)
+        frame.grid_config(pos = [0, 2])
+        frame.widget_grid(dd_t, pos = [0,0], padding = [10, (5,0)], snap = W)
+        frame.widget_grid(dd, pos = [0,1], padding = [10, 0], snap = W)
+        color_menu()
 
         #renders color selection frame
-        # frame.widget_grid(c, pos = [0,3], padding = [10, (5,0)], snap = NSEW)
-        frame.widget_pack(c, padding = [10, (5,0)], expand_wid = 1, fill_wid = 'x', anchor = 'w')
-
         return f
-
-    
 
     def set_entry(self, var, widget):
         #if the button is unchecked, the input form will disable.
@@ -359,11 +391,7 @@ class Options(Frame):
             widget.configure(style = 'Disable.TEntry', state = DISABLED)
         else:
             widget.configure(style = 'TEntry', state = NORMAL)
-
-    def get_status(self, states):
-        for key, val in zip(states, states.values()):
-            print(key, val.get())
-
+ 
 #program window
 class Program:
     def __init__(self, mode = None):
@@ -402,24 +430,5 @@ class Program:
 
 if __name__ == "__main__":
     p = Program('test')
-
-    # r = Tk()
-    # r.geometry("800x400")
-    # i = IntVar()
-    # i.set('2')
-
-    # l_frame = LabelFrame(r, padx = 20, pady = 30, text = 'Frame')
-
-    # for x in range(1,3):
-    #     t = Radiobutton(l_frame, text = 'Choice' + str(x), variable = i, value = x)
-    #     t.pack()
-
-    # l_frame.pack()
-    # r.mainloop()
-
-    # root = Tk()
-    # style = ttk.Style(root)
-    # style.theme_use('clam')
-    # hex_code, RGB_code = askcolor((255, 255, 0), root) 
-    # print(hex_code, RGB_code)
-    # root.mainloop()
+else:
+    p = Program()

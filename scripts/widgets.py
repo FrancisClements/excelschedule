@@ -118,11 +118,10 @@ class Kinter:
 
         return self.add_to_list(e)
 
-    def labelframe(self, title, padding = [0,0]):
+    def labelframe(self, title, padding = [0,0], **kwargs):
         #initializes the label frame
         pad = ' '.join(map(str, padding))
-        lf = ttk.LabelFrame(self.root, text = title, padding = pad)#, 
-            #padx = padding[0], pady = padding[1], font = used_font)
+        lf = ttk.LabelFrame(self.root, text = title, padding = pad, **kwargs)
         return self.add_to_list(lf)
 
     def checkbox(self, item, var = None, cmd = None):
@@ -131,12 +130,20 @@ class Kinter:
         return self.add_to_list(cb)
 
     def dropdown(self, item, val = 0, cmd = None, var = None, **kwargs):
-        drop = ttk.Combobox(self.root, value = item, command = cmd, **kwargs)
-        drop.current(val)
+        # automatically updates the variable
+        def update_var(event):
+            if var != None:
+                var.set(drop.get())
+            if cmd != None:
+                cmd()
 
-        #attempt to store a variable class
+        drop = ttk.Combobox(self.root, value = item, **kwargs)
+        drop.current(val)
+        drop.bind('<<ComboboxSelected>>', update_var)
+
+        #attempt to store a variable class (this only works once)
         if var != None:
-            var.set(item[val])
+            var.set(drop.get())
 
         return self.add_to_list(drop)
     
@@ -144,6 +151,25 @@ class Kinter:
         #separator bar
         separate = ttk.Separator(self.root, **kwargs)
         return self.add_to_list(separate)
+
+    def color_picker(self, var = None):
+        #sets default color if var is not filled
+        fill = LIGHT_GREY1
+
+        #asks a color picker window when it's clicked
+        def clicked(event):
+            fill = LIGHT_GREY1
+            RGB_code, hex_code = askcolor(fill, self.root, 
+                    title = 'Color Picker (Subject Color)') 
+            fill = hex_code
+            var.set(fill) if var != None else ''
+            picker.config(background = fill)
+
+        #colorpicker uses Label, not ttk.Label. Thay are different
+        picker = Label(self.root, text = '', background = fill, 
+                width = 5, relief = 'solid', bd = 1)
+        picker.bind('<Button-1>', clicked)
+        return self.add_to_list(picker)
 
     #non-widget methods
 
@@ -164,23 +190,23 @@ class Kinter:
         widget.grid_configure(sticky = snap)
 
     def grid_config(self, pos = [0,0]):
-        if isinstance(pos[1], list):
+        if isinstance(pos[1], list) or isinstance(pos[1], tuple):
             for row in range(pos[1][0], pos[1][1]+1):
                 Grid.rowconfigure(self.root, row, weight = 1)
-        else:
+        elif isinstance(pos[1], int):
             Grid.rowconfigure(self.root, pos[1], weight = 1)
             
-        if isinstance(pos[0], list):
+        if isinstance(pos[0], list) or isinstance(pos[0], tuple):
             for col in range(pos[0][0], pos[0][1]+1):
                 Grid.columnconfigure(self.root, col, weight = 1)
-        else:
-            Grid.columnconfigure(self.root, pos[1], weight = 1)
+        elif isinstance(pos[0], int):
+            Grid.columnconfigure(self.root, pos[0], weight = 1)
 
     def notify(self):
         self.root.bell()
 
 
-'''class that creates a tooltip when a widget is hovered'''
+'class that creates a tooltip when a widget is hovered'
 
 class ToolTip(object):
     def __init__(self, widget):
@@ -216,6 +242,7 @@ class ToolTip(object):
         if tw:
             tw.destroy()
 
+#function that accesses the class
 def tooltip(widget, text):
     toolTip = ToolTip(widget)
     def enter(event):

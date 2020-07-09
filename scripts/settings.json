@@ -1,16 +1,16 @@
 {
-    "_metadata": "07/08/2020 at 05:16PM",
+    "_metadata": "07/09/2020 at 07:34PM",
     "data": {
         "colors": {},
         "day_mode": "PARTIAL",
         "header": "1ST SEM - EMC202",
         "name": "NAME",
-        "time_format": "%I:%M%p",
-        "subject_key": ""
+        "subject_key": "",
+        "time_format": "%I:%M%p"
     },
     "files": {
         "input_file": "E:/Downloads/sched_tbl.xlsx",
-        "output_file": "E:/Downloads/dsdsds.xlsx"
+        "output_file": "E:/Downloads/HAUC.xlsx"
     },
     "options": {
         "enable_header": true,
@@ -18,10 +18,10 @@
         "enable_name": false
     },
     "system_colors": {
+        "DARK_GREY": "#474747",
         "LIGHT_GREY1": "#e6e6e6",
         "LIGHT_GREY2": "#e0e0e0",
-        "RED": "#bd3333",
-        "DARK_GREY": "#474747"
+        "RED": "#bd3333"
     },
     "widget_settings": {
         "BUTTON_SIZE": {
