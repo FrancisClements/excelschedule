@@ -15,13 +15,13 @@ class MainMenu(Frame):
         self.allow_next = 0
         super().__init__(self.master_cls.root)
 
-        #clears the data files from JSON
-        data['files']['input_file'] = ''
-
         # self.configure(bg = 'blue')
 
     def render(self):
-        self.pack(fill = 'both', expand = 1, pady = 50)
+        #clears the data files from JSON
+        data['files']['input_file'] = ''
+
+        self.pack(fill = 'both', expand = 1, pady = 50, padx = 20)
 
         self.title()
         self.file_form()
@@ -37,10 +37,10 @@ class MainMenu(Frame):
         #things to write
         title_k.label('Excel Schedule Maker', theme = 'header')
         title_k.label('Create a graphical version of your schedule using Excel')
-        title_k.label('Insert the schedule file and name the output file.')
+        title_k.label('Insert your Excel schedule table and name the output file')
 
         for widget in widget_list:
-            title_k.widget_pack(widget, fill_wid = 'both')
+            title_k.widget_pack(widget)
 
     def file_form(self):
         f = Frame(height = 100, width = 100, master = self)
@@ -104,8 +104,7 @@ class MainMenu(Frame):
         last_frame.widget_grid(last_wid_list[1], pos = [2,0], padding = [10,5])
 
     def check_form(self, txt_var):
-        #characters that are not allowed: /\:*?"><|
-        str_format = re.compile(r'[\\/:\:\?><\|\*]')
+        #checks if the forms are correctly inputted
         input_file = data['files']['input_file']
         output_file = self.out_txt.get()
         form_check = [len(x) == 0 for x in [input_file, output_file]]
@@ -113,19 +112,15 @@ class MainMenu(Frame):
         #checks if no data inputted
         if all(form_check):
             txt_var.set('Enter the Input File and Output Filename')
-            return
-        #checks the naming of the filename
-        elif re.search(str_format, output_file):
-            txt_var.set('Improper filename')
+            self.bell()
             return
         elif any(form_check):
             print('one of them')
             warning_txt = 'Enter the '
             warning_txt += 'Input File' if form_check[0] else 'Output Filename'
             txt_var.set(warning_txt)
+            self.bell()
             return
-
-
 
         #All conditions are met
         self.allow_next = 1
@@ -165,40 +160,85 @@ class Options(Frame):
         self.master = master
         self.frames = []
         self.main_k = Kinter(self, self.frames)
-        super().__init__(master.root, bg = LIGHT_GREY1)
+        super().__init__(master.root)
 
+        #Boolean States
         self.state = {}
         for option in ['hour_list', 'header', 'name']:
             #value to true on hour list and header
             self.state[option] = BooleanVar(value = True) if option != 'name' else BooleanVar()
 
+        #Data Inputs (all empty)
+        self.input_data = {}
+        for data_vars in ['header', 'name', 'time_format', 'day_format', 'subject_key']:
+            self.input_data[data_vars] = StringVar()
+
     def render(self):
-        self.pack(fill = 'both', expand = 1, pady = 50, padx = 10)
-
+        self.pack(fill = 'both', expand = 1, pady = 50, padx = 50)
         '''
-        creates 2 frames (left and right) and then render it using grid
-        all widgets inside of those 2 frames will be packed.
+        LAYOUT OF OPTIONS >>
+                        V
+                TITLE L | TITLE  R
+                DESC  L | DESC   R
+                --------+--------
+                L     R | COLOR
+                 FRAMES | SELECTION
+                --------+--------
+                    BUTTONS
+                    
         '''
+        #title/desc LEFT-----------------------------
+        tl = self.main_k.label('Customize', theme = 'header')
+        dl = self.main_k.label('Set up options to make your schedule look better')
+        self.main_k.widget_grid(tl, pos = [0,0], span = [2,1], snap = W)
+        self.main_k.widget_grid(dl, pos = [0,1], span = [2,1], padding = [10,0], snap = W)
 
-        # rendering the frames
-        title = self.main_k.label('Customize', theme = 'header')
-        self.main_k.widget_grid(title, pos = [0,0], span = [2,1], snap = W)
+        #left & right frames-------------------------
+        self.main_k.widget_grid(self.left_frame(), pos = [0,2], snap = NW)
+        self.main_k.widget_grid(self.right_frame(), pos = [1,2], snap = NW)
 
-        self.main_k.widget_grid(self.left_frame(), pos = [0,1], snap = NW)
-        self.main_k.widget_grid(self.right_frame(), pos = [1,1], snap = NW)
+        #verical line--------------------------------
+        sep = self.main_k.sep(orient = VERTICAL)
+        self.main_k.widget_grid(sep, pos = [3,0], span = [1,3], snap = NS)
 
+        #title/desc RIGHT----------------------------
+        tr = self.main_k.label('Color Selection', theme = 'header')
+        dr = self.main_k.label('Pick a color of your choice that corresponds to your subject\n'
+                'If we got the wrong category, feel free to change it below')
+        self.main_k.widget_grid(tr, pos = [4,0], padding = [5,0], snap = W)
+        self.main_k.widget_grid(dr, pos = [4,1], padding = [15,0], snap = W)
+                    
+        #color selection----------------------------
+        self.main_k.widget_grid(self.color_frame(), pos = [4,2], snap = NSEW)
         
+    def get_data(self):
+        print('\n\n\n--- STATES')
+        for state in self.state:
+            print(state,':',  self.state[state].get())
+
+        print('\n--- INPUT DATA')
+        for inputs in self.input_data:
+            print(inputs, ':',  self.input_data[inputs].get())
+    
     def left_frame(self):
+        str_format = re.compile(r'[\\/:\:\?><\|\*]')
         widgets = []
         f = Frame(height = 100, width = 100, master = self, pady = 5)
         frame = Kinter(f, widgets)
 
+        #Setting default value of header
+        self.input_data['header'].set('My Schedule')
+
         #widgets
         frame.checkbox('Enable Hour List', var = self.state['hour_list'])
         frame.checkbox('Enable Header', var = self.state['header'])
-        frame.entry()
+        header_form = frame.entry(limit = 30, textvariable = self.input_data['header'])
+
         frame.checkbox('Include Name', var = self.state['name'])
-        frame.entry(read_only = 1)
+        name_form = frame.entry(read_only = 1, limit = 30, 
+                textvariable = self.input_data['name'])
+
+        frame.button('Check', cmd = self.get_data)
 
         #tooltip descriptions
         desc = [
@@ -207,7 +247,7 @@ class Options(Frame):
             'Add your name to your schedule'
         ]
 
-        #listed self.satate keys that uses an entry
+        #listed self.state keys that uses an entry
         entry_states = ['header', 'name']
         desc_index = 0
         for i, widget in enumerate(widgets):
@@ -217,22 +257,20 @@ class Options(Frame):
                 if desc_index >= 1:
                     widget.config(command = lambda x = self.state[entry_states[desc_index-1]],
                         y = widgets[i+1]: self.set_entry(x,y))
+                    pad = [10,0]
 
+                else:
+                    pad = [10,5]
                 #adds tooltip
                 tooltip(widget, desc[desc_index])
                 desc_index += 1
-            
-            #spacing and render
-            frame.widget_grid(widget, pos = [0,i], padding = [10,0], snap = W)
-
-        #tooltip text
-        tooltip(widgets[0], 'Adds a list of hour time in your schedule\n'
-                        '(adds more organization)')
-        tooltip(widgets[1], 'Add a header or title')
-        tooltip(widgets[3], 'Add your name to your schedule')
+                #render for checkboxes
+                frame.widget_grid(widget, pos= [0,i], snap = W, padding = pad)
+            else:
+                #render for entry
+                frame.widget_grid(widget, pos = [0,i], snap = W, padding = [30,(0,5)])
 
         return f
-
 
     def right_frame(self):
         widgets = []
@@ -243,33 +281,84 @@ class Options(Frame):
         day_formats = ['Initial', 'Partial', 'Full']
         time_formats = ['12hr + AM/PM', '12hr + a/p', '24hr']
 
-        day_var = StringVar()
-        time_var = StringVar()
 
         #widgets
         frame.label('Day Format') #e.g. Mon, Monday, M
-        frame.dropdown(day_formats, 1)
-        frame.label('Time Format')
-        frame.dropdown(time_formats, 0)
+        frame.dropdown(day_formats, 1, var = self.input_data['day_format'], 
+                state = 'readonly')
 
+        frame.label('Time Format')
+        frame.dropdown(time_formats, 0, var = self.input_data['time_format'],
+                state = 'readonly')
+
+        #tooltip descriptions
+        desc = [
+            'Sets the day formatting\n' '(e.g. M/Mon/Monday)',
+            'Sets the time formatting\n' '(e.g. 1:00PM/1:00p/13:00)',
+        ]
+        desc_index = 0
 
         #fixing spacing of the widgets + render
         for i, widget in enumerate(widgets):
-            frame.widget_grid(widget, pos = [0,i], padding = [10,0], snap = W)
+            if isinstance(widget, ttk.Label):
+                frame.widget_grid(widget, pos = [0,i], padding = [10,(5,0)], snap = W)
+                #tooltip
+                tooltip(widget, desc[desc_index])
+                desc_index += 1
+            else:
+                frame.widget_grid(widget, pos = [0,i], padding = [10,0], snap = W)
 
         return f
+
+    def color_frame(self):
+        widgets = []
+        f = Frame(height = 100, width = 100, master = self, pady = 5, padx = 5)
+        frame = Kinter(f, widgets)
+
+        #excel data using pandas
+        self.pd = read_file(data['files']['input_file'])
+        headers = self.pd.keys().tolist()
+
+        #dropdown menu------------------------
+        dd_t = frame.label('Subject')
+        dd = frame.dropdown(headers, 1, var = self.input_data['subject_key'], 
+                state = 'readonly')
+
+        #render for dropdown
+        # frame.widget_grid(dd_t, pos = [0,1], padding = [10, (5,0)], snap = W)
+        # frame.widget_grid(dd, pos = [0,2], padding = [10, 0], snap = W)
+        frame.widget_pack(dd_t, padding = [10, (5,0)], expand_wid = 1, anchor = 'w')
+        frame.widget_pack(dd, padding = [10,0], expand_wid = 1, anchor = 'w')
+            
+        #color selection----------------------
+        color_widgets = []
+        c = frame.labelframe('Colors', padding = [0,5])
+        colors = Kinter(c, color_widgets)
+        #creates all subjects
+        for subject in self.pd[self.input_data['subject_key'].get()]:
+            colors.label(subject)
+
+        #renders all subjects inside frame
+        colors.grid_config(pos = [[0,1],0])
+        for i, widget in enumerate(color_widgets):
+            colors.widget_grid(widget, pos = [i%2, i//2], snap = NSEW)
+
+        #renders color selection frame
+        # frame.widget_grid(c, pos = [0,3], padding = [10, (5,0)], snap = NSEW)
+        frame.widget_pack(c, padding = [10, (5,0)], expand_wid = 1, fill_wid = 'x', anchor = 'w')
+
+        return f
+
+    
 
     def set_entry(self, var, widget):
         #if the button is unchecked, the input form will disable.
         #var = true/false, widget = entry widget
         if not var.get():
+            widget.delete(0,END)
             widget.configure(style = 'Disable.TEntry', state = DISABLED)
         else:
             widget.configure(style = 'TEntry', state = NORMAL)
-        
-
-
-
 
     def get_status(self, states):
         for key, val in zip(states, states.values()):
@@ -280,7 +369,7 @@ class Program:
     def __init__(self, mode = None):
         self.root = Tk()
         self.root.title('Excel Schedule Maker')
-        self.root.geometry('600x400')
+        self.root.geometry('900x550')
         self.new()
         self.run(mode)
         print('App Exit')

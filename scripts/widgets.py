@@ -1,9 +1,10 @@
 from tkinter import *
 from datetime import datetime as dt
-import tkinter.ttk as ttk, tkinter.font as tkfont, json, os
 from tkcolorpicker import askcolor  
+import tkinter.ttk as ttk, tkinter.font as tkfont, json, os, re
+import pandas as pd
 
-#initializing the methods for tkinter
+
 '''
     Kinter class is basically a cheat-sheet for
     TKinter. This class helps reduce the line of code
@@ -22,6 +23,7 @@ class Kinter:
 
     def config_style(self):
         #label formats: header, warning
+        self.sub_font = 'Corbel'
         size = FONT_SIZE['header']
         self.style.configure('Header.TLabel', font = f'Corbel {size} bold')
         self.style.configure('Warning.TLabel', foreground = RED)
@@ -38,17 +40,15 @@ class Kinter:
                        'Entry.background', {'children': [(
                            'Entry.padding', {'children': [(
                                'Entry.textarea', {'sticky': 'nswe'})],
-                      'sticky': 'nswe'})], 'sticky': 'nswe', 'border': '20'})],
+                      'sticky': 'nswe'})], 'sticky': 'nswe'})],
                       'border':'20', 'sticky': 'nswe'})] )
-
-        # self.style.configure("Disable.TEntry",
-        #          background='red', 
-        #          fieldbackground = f'{LIGHT_GREY1}', relief = FLAT)
 
         self.style.map('Disable.TEntry',
             foreground = [('disabled', 'black')],
             fieldbackground = [('!disabled', 'red'), ('disabled', f'{LIGHT_GREY1}' )])
 
+        #separator modified: background
+        self.style.configure('TSeparator', background = LIGHT_GREY2)
 
     def add_to_list(self, widget):
         #adds widgets to the list
@@ -68,7 +68,6 @@ class Kinter:
         return self.add_to_list(l)
         
     def button(self, item, size = 'default', font_size = 'default', state_type = None, cmd = None):
-
         #initializes the button
         b = ttk.Button(self.root, text = item, state = state_type, command = cmd)#, font = used_font)
 
@@ -83,10 +82,32 @@ class Kinter:
         #     b['padx'], b['pady'] = size
         return self.add_to_list(b)
 
-    def entry(self, width = 20, read_only = 0):
-        #initializes entry
-        e = ttk.Entry(self.root)
+    def entry(self, width = 25, read_only = 0, limit = None, **kwargs):
+        str_format = re.compile(r'[\\/:\:\?><\|\*]')
+        #functions for validating data
+        def validate_len(new_val):
+            #limits amount of characters
+            if len(new_val) > limit or re.search(str_format, new_val):
+                self.notify()
+                return False
+            return True
+
+        def validate(new_val):
+            if re.search(str_format, new_val):
+                self.notify()
+                return False
+            return True
+                #initializes entry
+        e = ttk.Entry(self.root, **kwargs)
         e['width'] = width
+
+        #command input
+        if limit == None:
+            vcmd = (e.register(validate),"%P")
+        else:
+            vcmd = (e.register(validate_len),"%P")
+        
+        e.configure(validate = 'key', validatecommand = vcmd)
 
         #sets the state of the entry.
         if isinstance(read_only, int) or isinstance(read_only, bool):
@@ -97,12 +118,10 @@ class Kinter:
 
         return self.add_to_list(e)
 
-    def labelframe(self, title, font_size = 'default', padding = [0,0]):
-        #sets size
-        used_font = self.set_font_size(font_size)
-
+    def labelframe(self, title, padding = [0,0]):
         #initializes the label frame
-        lf = ttk.LabelFrame(self.root, text = title)#, 
+        pad = ' '.join(map(str, padding))
+        lf = ttk.LabelFrame(self.root, text = title, padding = pad)#, 
             #padx = padding[0], pady = padding[1], font = used_font)
         return self.add_to_list(lf)
 
@@ -111,17 +130,31 @@ class Kinter:
             command = cmd, variable = var)
         return self.add_to_list(cb)
 
-    def dropdown(self, item, val = 0, cmd = None):
-        drop = ttk.Combobox(self.root, value = item)
+    def dropdown(self, item, val = 0, cmd = None, var = None, **kwargs):
+        drop = ttk.Combobox(self.root, value = item, command = cmd, **kwargs)
         drop.current(val)
+
+        #attempt to store a variable class
+        if var != None:
+            var.set(item[val])
+
         return self.add_to_list(drop)
+    
+    def sep(self, **kwargs):
+        #separator bar
+        separate = ttk.Separator(self.root, **kwargs)
+        return self.add_to_list(separate)
 
     #non-widget methods
-    def widget_pack(self, widget, padding = [0,0], fill_wid = None, expand_wid = None, snap = None):
+
+    def widget_pack(self, widget, padding = [0,0], fill_wid = None, expand_wid = None, snap = None, **kwargs):
+        #fill_wid = 'x', 'y', or 'both'
+        #expand_wid = 0 or 1
         #renders array of pack()
         widget.pack(padx = padding[0], pady = padding[1])
         widget.pack_configure(side = snap)
         widget.pack_configure(expand = expand_wid, fill = fill_wid)
+        widget.pack_configure(**kwargs)
 
     def widget_grid(self, widget, pos = [0,0], span = [1,1], padding = [0,0], snap = None):
         #renders array of grid()
@@ -129,6 +162,23 @@ class Kinter:
         widget.grid_configure(padx = padding[0], pady = padding[1])
         widget.grid_configure(columnspan = span[0], rowspan = span[1])
         widget.grid_configure(sticky = snap)
+
+    def grid_config(self, pos = [0,0]):
+        if isinstance(pos[1], list):
+            for row in range(pos[1][0], pos[1][1]+1):
+                Grid.rowconfigure(self.root, row, weight = 1)
+        else:
+            Grid.rowconfigure(self.root, pos[1], weight = 1)
+            
+        if isinstance(pos[0], list):
+            for col in range(pos[0][0], pos[0][1]+1):
+                Grid.columnconfigure(self.root, col, weight = 1)
+        else:
+            Grid.columnconfigure(self.root, pos[1], weight = 1)
+
+    def notify(self):
+        self.root.bell()
+
 
 '''class that creates a tooltip when a widget is hovered'''
 
@@ -207,6 +257,12 @@ def write_data():
         f.truncate()
 
 load_settings()
+
+#reads the excel file using pandas
+def read_file(filename):
+    df = pd.read_excel(filename)
+    return df
+
 
 if __name__ == "__main__":
     root = Tk()

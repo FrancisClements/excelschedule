@@ -12,9 +12,8 @@ if not os.path.isfile(filename):
 with open(filename, 'r') as f:
     json_data = json.load(f)
 
-
 class SchedMaker:
-    def __init__(self, json_data):
+    def __init__(self, json_data, pandas):
         #read the JSON
         self.data = json_data
         self.init_sched()
