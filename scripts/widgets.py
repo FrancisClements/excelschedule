@@ -152,10 +152,9 @@ class Kinter:
         separate = ttk.Separator(self.root, **kwargs)
         return self.add_to_list(separate)
 
-    def color_picker(self, var = None):
+    def color_picker(self, var = None, color = 'white'):
         #sets default color if var is not filled
         fill = LIGHT_GREY1
-
         #asks a color picker window when it's clicked
         def clicked(event):
             fill = LIGHT_GREY1
@@ -166,7 +165,7 @@ class Kinter:
             picker.config(background = fill)
 
         #colorpicker uses Label, not ttk.Label. Thay are different
-        picker = Label(self.root, text = '', background = fill, 
+        picker = Label(self.root, text = 'A', fg = color, bg = fill, 
                 width = 5, relief = 'solid', bd = 1)
         picker.bind('<Button-1>', clicked)
         return self.add_to_list(picker)

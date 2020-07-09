@@ -171,7 +171,7 @@ class Options(Frame):
 
         #Data Inputs (all empty)
         self.input_data = {}
-        for data_vars in ['header', 'name', 'time_format', 'day_format', 'subject_key']:
+        for data_vars in ['header', 'name', 'time_format', 'day_format', 'subject_key', 'font_color']:
             self.input_data[data_vars] = StringVar()
 
     def render(self):
@@ -320,68 +320,84 @@ class Options(Frame):
         widgets = []
         f = Frame(height = 100, width = 100, master = self, pady = 5, padx = 5, bg = LIGHT_GREY1)
         frame = Kinter(f, widgets)
-        char_limit = 12
-
-        def color_menu():
-            self.colors = {}
-            color_widgets = []
-            c = frame.labelframe('Colors', padding = [10,5])
-            colors = Kinter(c, color_widgets)
-
-            #creates all subjects
-            printed_subs = []
-            for subject in self.pd[self.input_data['subject_key'].get()]:
-                #removes any duplicate labels
-                if subject not in printed_subs:
-                    printed_subs.append(subject)
-                else:
-                    continue
-
-                self.colors[subject] = StringVar()
-                #limits number of characters to 10.
-                if isinstance(subject, str) and len(subject) > char_limit:
-                    full_subject = subject
-                    subject = subject[:char_limit] + '...'
-                    tooltip(colors.label(subject), full_subject)
-                else:
-                    colors.label(subject)
-
-                #color picker goes here
-                colors.color_picker(var = self.colors[subject])
-
-
-            #renders all subjects inside frame
-            colors.grid_config(pos = [[0,2],'x'])
-
-            widgets_len = len(color_widgets)
-            for i, widget in enumerate(color_widgets):
-                #specified rendering for showing 2 widgets
-                if widgets_len <= 4:
-                    colors.widget_grid(widget, pos = [i%2, i//2], snap = NW, padding = [0, 2])
-                else:
-                    colors.widget_grid(widget, pos = [i%4, i//4], snap = NW, padding = [0, 2])
-
-            #renders the color menu
-            frame.widget_grid(c, pos = [0,2], padding = [10, (5,0)], snap = 'NSEW')
 
         #excel data using pandas
         self.pd = read_file(data['files']['input_file'])
         headers = self.pd.keys().tolist()
 
         #dropdown menu------------------------
-        dd_t = frame.label('Subject')
-        tooltip(dd_t, 'This will show up to your schedule')
-        dd = frame.dropdown(headers, 0, var = self.input_data['subject_key'], 
-                state = 'readonly', cmd = color_menu)
+        #Subject
+        frame.label('Category')
+        tooltip(widgets[0], 'This will show up to your schedule')
+        frame.dropdown(headers, 0, var = self.input_data['subject_key'], 
+                state = 'readonly', cmd = lambda:self.make_color_menu(frame))
+
+        #Font Color
+        font_colors = ['Black', 'White']
+        frame.label('Font Color')
+        frame.dropdown(font_colors, 0, var = self.input_data['font_color'], 
+                state = 'readonly', cmd = self.set_preview_color)
 
         #render for dropdown
-        frame.grid_config(pos = [0, 2])
-        frame.widget_grid(dd_t, pos = [0,0], padding = [10, (5,0)], snap = W)
-        frame.widget_grid(dd, pos = [0,1], padding = [10, 0], snap = W)
-        color_menu()
+        frame.grid_config(pos = [[0,1], 2])
+        frame.widget_grid(widgets[0], pos = [0,0], padding = [10, (5,0)], snap = W)
+        frame.widget_grid(widgets[1], pos = [0,1], padding = [10, 0], snap = W)
+        frame.widget_grid(widgets[2], pos = [1,0], padding = [0, (5,0)], snap = NW)
+        frame.widget_grid(widgets[3], pos = [1,1], snap = NW)
+
+        self.make_color_menu(frame)
 
         #renders color selection frame
         return f
+
+    def make_color_menu(self, parent_root):
+        char_limit = 12
+
+        self.colors = {}
+        self.color_widgets = []
+        c = parent_root.labelframe('Colors', padding = [10,5])
+        colors = Kinter(c, self.color_widgets)
+
+        #creates all subjects
+        printed_subs = []
+        for subject in self.pd[self.input_data['subject_key'].get()]:
+            #removes any duplicate labels
+            if subject not in printed_subs:
+                printed_subs.append(subject)
+            else:
+                continue
+
+            self.colors[subject] = StringVar(value = LIGHT_GREY1)
+            #limits number of characters to 10.
+            if isinstance(subject, str) and len(subject) > char_limit:
+                cut_subject = subject[:char_limit] + '...'
+                tooltip(colors.label(cut_subject), subject)
+            else:
+                colors.label(subject)
+
+            #color picker goes here
+            colors.color_picker(var = self.colors[subject], 
+                    color = self.input_data['font_color'].get())
+
+        #renders all subjects inside parent_root
+        colors.grid_config(pos = [[0,2],'x'])
+
+        widgets_len = len(self.color_widgets)
+        for i, widget in enumerate(self.color_widgets):
+            #specified rendering for showing 2 widgets
+            if widgets_len <= 4:
+                colors.widget_grid(widget, pos = [i%2, i//2], snap = NW, padding = [0, 2])
+            else:
+                colors.widget_grid(widget, pos = [i%4, i//4], snap = NW, padding = [0, 2])
+
+        #renders the color menu
+        parent_root.widget_grid(c, pos = [0,2], padding = [10, (5,0)], 
+                        snap = NSEW, span = [2,1])
+
+    def set_preview_color(self):
+        for widget in self.color_widgets:
+            if isinstance(widget, Label):
+                widget.config(fg = self.input_data['font_color'].get())
 
     def set_entry(self, var, widget):
         #if the button is unchecked, the input form will disable.
