@@ -1,7 +1,8 @@
-import schedule, re
+import re
 from tkinter import *
-from tkinter import filedialog
+from schedule import *
 from widgets import *
+from tkinter import filedialog
 from pathlib import Path
 # import tkinter.ttk as ttk, tkinter.font as tkfont
 # from tkcolorpicker import askcolor
@@ -68,7 +69,7 @@ class MainMenu(Frame):
         out_form = out_frame.entry(width = 40)
         out_form.config(textvariable = self.out_txt)#, bg = LIGHT_GREY1)
         out_frame.label('.xlsx')
-        out_frame.label('The output file is at the same location as the input file.')
+        out_frame.label('The output file will be at the same location as the input file.')
 
         #rendering
         for widget in widget_list: #the whole main menu frames
@@ -131,8 +132,34 @@ class MainMenu(Frame):
 
         print(input_list)
         data['files']['output_file'] = output_file
-        self.next_frame()
+
+        #Phase 2: Check the table if it ahs the correct formatting
+        self.check_excel(txt_var)
         print(input_file, output_file)
+
+    def check_excel(self, txt_var):
+        #reads excel using pandas
+        xl_data = read_file(data['files']['input_file'])
+        xl_keys = xl_data.columns.tolist()
+        xl_values = xl_data.values()
+        keyword = re.compile(r'(?i:time|subject|course)')
+
+        #checks if the table has content
+        if len(xl_keys) <= 1 or len(xl_values) == 0:
+            txt_var.set('The schedule file has insufficient data\n'
+                        'It must have at least the following:\n' 
+                        'Time and Subject/Course')
+            self.bell()
+            return
+
+        #checks if the table have headers
+        elif not any(bool(keyword.search(key)) for key in xl_keys):
+            txt_var.set('The schedule file requires a header')
+            self.bell()
+            return
+
+        #All conditions are met
+        self.next_frame()
 
     def next_frame(self):
         write_data()
@@ -156,23 +183,35 @@ class MainMenu(Frame):
 #options
 class Options(Frame):
     def __init__(self, master = None):
-        self.data = data
+        #read excel files using pandas
+        self.pd = read_file(data['files']['input_file'])
+        self.pd_headers = self.pd.keys().tolist()
+
         self.master = master
         self.frames = []
         self.colors = {}
         self.main_k = Kinter(self, self.frames)
         super().__init__(master.root)
+        self.new()
 
+    def new(self):
         #Boolean States
         self.state = {}
-        for option in ['hour_list', 'header', 'name']:
+        for option in ['hour_list', 'header', 'name', 'time_twice', 'day']:
             #value to true on hour list and header
-            self.state[option] = BooleanVar(value = True) if option != 'name' else BooleanVar()
+            self.state[option] = BooleanVar(value = option not in ['name', 'time_twice'])
+
 
         #Data Inputs (all empty)
         self.input_data = {}
-        for data_vars in ['header', 'name', 'time_format', 'day_format', 'subject_key', 'font_color']:
-            self.input_data[data_vars] = StringVar()
+        data_list = ['header', 'name', 'time_format', 'day_format', 
+                    'font_color', 'subject_key', 'time_key', 'day_key']
+        for data_vars in data_list:
+            if data_vars != 'time_key':
+                self.input_data[data_vars] = StringVar()
+            else:
+                #time key is a list because it's possible to have 2 inputs
+                self.input_data[data_vars] = [StringVar(), StringVar()]
 
     def render(self):
         self.pack(fill = 'both', expand = 1, pady = 50, padx = 25)
@@ -214,17 +253,38 @@ class Options(Frame):
         self.main_k.widget_grid(self.color_frame(), pos = [4,2], snap = NSEW)
         
     def get_data(self):
+        #Cleaning last-used data
+        data['data'] = {}
+        data['data']['colors'] = {}
+        data['options'] = {}
+
+        #printing and setting data
         print('\n\n\n--- STATES')
-        for state in self.state:
-            print(state,':',  self.state[state].get())
+        for key, val in zip(self.state, self.state.values()):
+            data['options']['enable_' + key] = val.get()
+            print(key,':',  val.get())
 
         print('\n--- INPUT DATA')
-        for inputs in self.input_data:
-            print(inputs, ':',  self.input_data[inputs].get())
+        for key, val in zip(self.input_data, self.input_data.values()):
+            #checks if the value is a list
+            #then, it will for loop through the list
+            if isinstance(val, list):
+                #for time_key
+                for i, sub_val in enumerate(val):
+                    tag = f'{key}_{i}'
+                    data['data'][tag] = sub_val.get()
+                    print(tag, ':', sub_val.get())
+            else:
+                data['data'][key] = val.get()
+                print(key, ':',  val.get())
 
         print('\n--- COLORS')
-        for key, value in zip(self.colors, self.colors.values()):
-            print(key, ':', value.get())
+        for key, val in zip(self.colors, self.colors.values()):
+            data['data']['colors'][key] = val.get()
+            print(key, ':', val.get())
+
+        # write_data()
+        create_schedule()
     
     def left_frame(self):
         str_format = re.compile(r'[\\/:\:\?><\|\*]')
@@ -240,11 +300,11 @@ class Options(Frame):
         frame.checkbox('Enable Header', var = self.state['header'])
         header_form = frame.entry(limit = 30, textvariable = self.input_data['header'])
 
-        frame.checkbox('Include Name', var = self.state['name'])
+        frame.checkbox('Include your Name', var = self.state['name'])
         name_form = frame.entry(read_only = 1, limit = 30, 
                 textvariable = self.input_data['name'])
 
-        frame.button('Check', cmd = self.get_data)
+        frame.button('Process Data', cmd = self.get_data)
 
         #tooltip descriptions
         desc = [
@@ -287,49 +347,93 @@ class Options(Frame):
         day_formats = ['Initial', 'Partial', 'Full']
         time_formats = ['12hr + AM/PM', '12hr + a/p', '24hr']
 
-
         #widgets
+        #day
         frame.label('Day Format') #e.g. Mon, Monday, M
         frame.dropdown(day_formats, 1, var = self.input_data['day_format'], 
-                state = 'readonly')
-
+                        state = 'readonly')
+        frame.label('Set Column (Day)') #e.g. Mon, Monday, M
+        day_box = frame.checkbox('My subjects have different\n' 'schedule on other days', 
+                        var = self.state['day'])
+        frame.dropdown(self.pd_headers, 1, var = self.input_data['day_key'], 
+                        state = 'readonly', width = 15)
+        #time
         frame.label('Time Format')
         frame.dropdown(time_formats, 0, var = self.input_data['time_format'],
-                state = 'readonly')
+                        state = 'readonly')
+
+        frame.label('Set Column (Time)')
+        time_box = frame.checkbox('I need 2 columns to set time', var = self.state['time_twice'])
+        #in and out dropdowns
+        frame.dropdown(self.pd_headers, 0, var = self.input_data['time_key'][0],
+                        state = 'readonly', width = 15)
+        frame.label('(Time IN)')
+        frame.dropdown(self.pd_headers, 0, var = self.input_data['time_key'][1],
+                        state = DISABLED, width = 15)
+        frame.label('(Time OUT)', state = DISABLED)
+
+        #2 columns checkbox command configure
+        day_box.config(command = lambda x = self.state['day'],
+                        y = widgets[4]: self.set_entry(x,y, del_ = 0))
+        time_box.config(command = lambda x = self.state['time_twice'],
+                        y = widgets[-2:]: self.set_entry(x,y, del_ = 0))
+ 
 
         #tooltip descriptions
         desc = [
             'Sets the day formatting\n' '(e.g. M/Mon/Monday)',
+            'Set the column that corresponds\n' 'to the days of subject attending',
             'Sets the time formatting\n' '(e.g. 1:00PM/1:00p/13:00)',
+            'Set the column that corresponds\n' 
+                'to the time of subject attending\n\n'
+                'If there are 2 separate columns to set,\n' 
+                '(i.e. "time in" and "time out"),\n' 'check the box',
         ]
         desc_index = 0
 
         #fixing spacing of the widgets + render
         for i, widget in enumerate(widgets):
-            if isinstance(widget, ttk.Label):
-                frame.widget_grid(widget, pos = [0,i], padding = [10,(5,0)], snap = W)
-                #tooltip
-                tooltip(widget, desc[desc_index])
-                desc_index += 1
-            else:
-                frame.widget_grid(widget, pos = [0,i], padding = [10,0], snap = W)
+            #sp = cell span
+            sp = [1,1]
 
+            if isinstance(widget, ttk.Label):
+                #set padding for labels
+                pad = [10,(5,0)]
+                #increase spacing on the 'time format' label
+                pad[1] = (20,0) if i == 5 else (5,0)
+                #tooltip
+                if i <= 8:
+                    tooltip(widget, desc[desc_index])
+                    desc_index += 1
+
+            elif isinstance(widget, ttk.Checkbutton):
+                #padding and span for checkbuttons
+                pad = [15,0]
+                sp = [2,1]
+            elif isinstance(widget, ttk.Combobox) and widget['width'] < 18:
+                #padding for dropdown menus that has short width
+                #short width = indent
+                pad = [25,(0,3)]
+            else:
+                pad = [10,0]
+
+            if i >= 8 and isinstance(widget, ttk.Label):
+                #render labels 'timein & timeout' at the side
+                frame.widget_grid(widget, pos = [1,i-1])
+            else:
+                frame.widget_grid(widget, pos = [0,i], padding = pad, snap = W, span = sp)
         return f
 
     def color_frame(self):
         widgets = []
-        f = Frame(height = 100, width = 100, master = self, pady = 5, padx = 5, bg = LIGHT_GREY1)
+        f = Frame(height = 100, width = 100, master = self, pady = 5, padx = 5)
         frame = Kinter(f, widgets)
-
-        #excel data using pandas
-        self.pd = read_file(data['files']['input_file'])
-        headers = self.pd.keys().tolist()
 
         #dropdown menu------------------------
         #Subject
         frame.label('Category')
-        tooltip(widgets[0], 'This will show up to your schedule')
-        frame.dropdown(headers, 0, var = self.input_data['subject_key'], 
+        tooltip(widgets[0], 'This is what will show up to your schedule')
+        frame.dropdown(self.pd_headers, 0, var = self.input_data['subject_key'], 
                 state = 'readonly', cmd = lambda:self.make_color_menu(frame))
 
         #Font Color
@@ -399,14 +503,27 @@ class Options(Frame):
             if isinstance(widget, Label):
                 widget.config(fg = self.input_data['font_color'].get())
 
-    def set_entry(self, var, widget):
+    def set_entry(self, var, widgets, del_ = 1):
         #if the button is unchecked, the input form will disable.
         #var = true/false, widget = entry widget
-        if not var.get():
-            widget.delete(0,END)
-            widget.configure(style = 'Disable.TEntry', state = DISABLED)
-        else:
-            widget.configure(style = 'TEntry', state = NORMAL)
+        entry_styles = ['Disable.TEntry', 'TEntry']
+        if not isinstance(widgets, list):
+            widgets = [widgets]
+
+        for widget in widgets:
+            if not var.get():
+                #deletes all data written
+                if del_:
+                    widget.delete(0,END)
+                sty = entry_styles[0]
+                sta = DISABLED
+            else:
+                sty = entry_styles[1]
+                sta = NORMAL if not isinstance(widget, ttk.Combobox) else 'readonly'
+
+            if isinstance(widget, ttk.Entry) and not isinstance(widget, ttk.Combobox):
+                widget.configure(style = sty)
+            widget.configure(state = sta)
  
 #program window
 class Program:

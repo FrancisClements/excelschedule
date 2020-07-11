@@ -56,9 +56,9 @@ class Kinter:
             self.widget_list.append(widget)
         return widget
 
-    def label(self, item, theme = 'default'):
+    def label(self, item, theme = 'default', **kwargs):
         #initializes the label
-        l = ttk.Label(self.root, text = item)
+        l = ttk.Label(self.root, text = item, **kwargs)
 
         if theme == 'header':
             l.configure(style = 'Header.TLabel')
@@ -157,12 +157,14 @@ class Kinter:
         fill = LIGHT_GREY1
         #asks a color picker window when it's clicked
         def clicked(event):
-            fill = LIGHT_GREY1
+            fill = var.get()
             RGB_code, hex_code = askcolor(fill, self.root, 
-                    title = 'Color Picker (Subject Color)') 
+                    title = 'Color Picker (Subject Color)')
             fill = hex_code
-            var.set(fill) if var != None else ''
-            picker.config(background = fill)
+
+            if fill != None:
+                var.set(fill) if var != None else ''
+                picker.config(background = fill)
 
         #colorpicker uses Label, not ttk.Label. Thay are different
         picker = Label(self.root, text = 'A', fg = color, bg = fill, 
@@ -203,7 +205,6 @@ class Kinter:
 
     def notify(self):
         self.root.bell()
-
 
 'class that creates a tooltip when a widget is hovered'
 
