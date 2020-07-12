@@ -1,4 +1,4 @@
-import re
+import re, os
 from tkinter import *
 from schedule import *
 from widgets import *
@@ -193,7 +193,7 @@ class MainMenu(Frame):
 class Options(Frame):
     def __init__(self, master = None):
         #read excel files using pandas
-        self.master = master
+        self.master_cls = master
         self.frames = []
         self.colors = {}
         self.main_k = Kinter(self, self.frames)
@@ -261,40 +261,6 @@ class Options(Frame):
                     
         #color selection----------------------------
         self.main_k.widget_grid(self.color_frame(), pos = [4,2], snap = NSEW)
-        
-    def get_data(self):
-        #Cleaning last-used data
-        data['data'] = {}
-        data['data']['colors'] = {}
-        data['options'] = {}
-
-        #printing and setting data
-        print('\n\n\n--- STATES')
-        for key, val in zip(self.state, self.state.values()):
-            data['options']['enable_' + key] = val.get()
-            print(key,':',  val.get())
-
-        print('\n--- INPUT DATA')
-        for key, val in zip(self.input_data, self.input_data.values()):
-            #checks if the value is a list
-            #then, it will for loop through the list
-            if isinstance(val, list):
-                #for time_key
-                for i, sub_val in enumerate(val):
-                    tag = f'{key}_{i}'
-                    data['data'][tag] = sub_val.get()
-                    print(tag, ':', sub_val.get())
-            else:
-                data['data'][key] = val.get()
-                print(key, ':',  val.get())
-
-        print('\n--- COLORS')
-        for key, val in zip(self.colors, self.colors.values()):
-            data['data']['colors'][key] = val.get()
-            print(key, ':', val.get())
-
-        write_data()
-        create_schedule()
     
     def left_frame(self):
         str_format = re.compile(r'[\\/:\:\?><\|\*]')
@@ -315,21 +281,21 @@ class Options(Frame):
                 textvariable = self.input_data['name'])
 
         #Include Classroom
-        classroom = frame.checkbox('Include classroom along with the category',
+        classroom = frame.checkbox('Include description \nof the subject',
                     var = self.state['add_classroom'])
         class_drop = frame.dropdown(self.pd_headers, 0, var = self.input_data['room_key'], 
                     state = 'readonly', width = 22)
 
-        frame.button('Process Data', cmd = self.get_data)
+        frame.button('Create Schedule', cmd = self.get_data)
 
         #tooltip descriptions
         desc = [
             'Adds a list of hour time in your schedule\n' '(adds more organization)',
             'Add a header or title',
             'Add your name to your schedule',
-            'Include the location of the classroom\n'
+            'Include a description of the subject\n'
                 '(This is useful for subjects that have\n'
-                'different classrooms)'
+                'different classroom locations)'
         ]
 
         #listed self.state keys that uses an entry
@@ -353,6 +319,9 @@ class Options(Frame):
             else:
                 #render for entry
                 frame.widget_grid(widget, pos = [0,i], snap = W, padding = [30,(0,5)])
+
+            if i == len(widgets)-1:
+                frame.widget_grid(widget, pos = [0,i], snap = W, padding = [30,30])
 
         return f
 
@@ -509,9 +478,9 @@ class Options(Frame):
         for i, widget in enumerate(self.color_widgets):
             #specified rendering for showing 2 widgets
             if widgets_len <= 4:
-                colors.widget_grid(widget, pos = [i%2, i//2], snap = NW, padding = [0, 2])
+                colors.widget_grid(widget, pos = [i%2, i//2], snap = W, padding = [0, 2])
             else:
-                colors.widget_grid(widget, pos = [i%4, i//4], snap = NW, padding = [0, 2])
+                colors.widget_grid(widget, pos = [i%4, i//4], snap = W, padding = [0, 2])
 
         #renders the color menu
         parent_root.widget_grid(c, pos = [0,4], padding = [10, (5,0)], 
@@ -544,19 +513,127 @@ class Options(Frame):
                 widget.configure(style = sty)
             widget.configure(state = sta)
  
+    def get_data(self):
+        #Cleaning last-used data
+        data['data'] = {}
+        data['data']['colors'] = {}
+        data['options'] = {}
+
+        #printing and setting data
+        print('\n\n\n--- STATES')
+        for key, val in zip(self.state, self.state.values()):
+            data['options']['enable_' + key] = val.get()
+            print(key,':',  val.get())
+
+        print('\n--- INPUT DATA')
+        for key, val in zip(self.input_data, self.input_data.values()):
+            #checks if the value is a list
+            #then, it will for loop through the list
+            if isinstance(val, list):
+                #for time_key
+                for i, sub_val in enumerate(val):
+                    tag = f'{key}_{i}'
+                    data['data'][tag] = sub_val.get()
+                    print(tag, ':', sub_val.get())
+            else:
+                data['data'][key] = val.get()
+                print(key, ':',  val.get())
+
+        print('\n--- COLORS')
+        for key, val in zip(self.colors, self.colors.values()):
+            data['data']['colors'][key] = val.get()
+            print(key, ':', val.get())
+
+        write_data()
+        try:
+            create_schedule()
+            self.next_frame()
+        except:
+            error()
+ 
+    def next_frame(self):
+        self.master_cls.next_frame()
+
+
+class Finish(Frame):
+    def __init__(self, master = None):
+        self.master_cls = master
+        self.main_k = Kinter(self)
+        super().__init__(master.root)
+
+    def render(self):
+        self.pack(fill = 'both', expand = 1, pady = 50, padx = 25)
+
+        #widgets
+
+        #button
+        btn = self.main_k.button('Browse and Quit', cmd = self.browse)
+
+        #render
+        self.main_k.widget_pack(self.title(), expand_wid = 1)
+        self.main_k.widget_pack(btn, expand_wid = 1)
+        self.main_k.widget_pack(self.footnote(), expand_wid = 1)
+
+        # self.main_k.widget_pack(btn, expand_wid = 1)
+        # for i, widget in enumerate(self.main_widgets):
+        #     if i == 3:
+        #         self.main_k.widget_pack(widget, expand_wid = 1, padding = [0, (25,0)])
+        #     self.main_k.widget_pack(widget)
+
+    def title(self):
+        f = Frame(master = self, width = 100, height = 100, pady = 50)
+        widgets = []
+        frame = Kinter(f, widgets)
+
+        frame.label('Success!', theme = 'header')
+        frame.label('Your Graphical Schedule has been successfully created!')
+        frame.label('You can open the file by clicking the button below')
+
+        for i, widget in enumerate(widgets):
+            if i == 0:
+                frame.widget_pack(widget, padding = [0, (0,10)])
+            else:
+                frame.widget_pack(widget)
+
+        return f
+
+    def footnote(self):
+        f = Frame(master = self, width = 100, height = 100, pady = 50)
+        widgets = []
+        frame = Kinter(f, widgets)
+
+        frame.label('(c) 2020 FrancisClements')
+        frame.label('\nhttps://github.com/FrancisClements/')
+        frame.label('Love from Philippines')
+
+        for widget in widgets:
+            frame.widget_pack(widget)
+
+        return f
+
+    def browse(self):
+        directory = data['files']['output_file']
+        directory = directory.split('/')
+        directory = '/'.join(directory[:-1])
+
+        os.system(f'start {directory}')
+        self.master_cls.exit()
+        
+
 #program window
 class Program:
     def __init__(self, mode = None):
         self.root = Tk()
         self.root.title('Excel Schedule Maker')
         self.root.geometry('900x550')
+        self.root.resizable(width = False, height = False)
         self.new()
         self.run(mode)
         print('App Exit')
 
     def new(self):
         #puts all frames in a list
-        self.frames = [0, [MainMenu(self), Options(self)]]
+        self.frames = [0, [MainMenu(self), Options(self), Finish(self)]]
 
     def next_frame(self):
         #hides the current frame, shows the next frame
@@ -564,15 +641,19 @@ class Program:
         self.frames[0] += 1
         self.frames[1][self.frames[0]].render()
 
+    def exit(self):
+        self.root.destroy()
+
     def run(self, mode = None):
+        print('current frame', self.frames[0])
         #prints the mainmenu
         if mode == 'test':
-            self.frames[1][1].render()
+            self.frames[1][2].render()
+            self.frames[0] = 2
             pass
         else:
             self.frames[1][0].render()
-
-        # print(self.root.pack_slaves())
+        print('new frame', self.frames[0])
 
         #main loop of the program
         self.root.mainloop() 

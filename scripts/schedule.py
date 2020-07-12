@@ -3,15 +3,7 @@ import pandas as pd, xlsxwriter as xl
 import os, re, json
 from datetime import datetime
 from tkinter import messagebox
-
-filename = 'settings.json'
-#checks if the file exists (required)
-if not os.path.isfile(filename):
-    raise Exception('JSON file is missing.')
-
-#loads JSON
-with open(filename, 'r') as f:
-    json_data = json.load(f)
+from widgets import *
 
 class SchedMaker:
     def __init__(self, json_data):
@@ -182,6 +174,7 @@ class ExcelWriter:
 
     def write(self):
         self.write_title()
+        self.write_name()
         self.write_day()
         self.write_time()
         self.write_subject()
@@ -198,9 +191,10 @@ class ExcelWriter:
         self.subj_font_color = self.data['data']['font_color'].upper()
         self.preset = {
             'header': [['COLOR', 'ACCENT_LIGHT'], 'BOLD', 'CENTER', 'BORDER'],
+            'name': [['COLOR', 'DARK_GREY'], ['FONTCOLOR', 'WHITE'], 'CENTER', 'BORDER'],
             'title': [['COLOR', 'BLACK'], ['FONTCOLOR', 'WHITE'], 'BOLD', 'CENTER', 'BORDER'],
-            'subject': ['BOLD'],
-            'room': [['SIZE', 9]]
+            'subject': ['BOLD', ['FONTCOLOR', self.subj_font_color]],
+            'room': [['SIZE', 9], ['FONTCOLOR', self.subj_font_color]]
             }
         self.cell_height = 16
         self.cell_width = 13
@@ -208,21 +202,25 @@ class ExcelWriter:
         #sets a starting point when writing
         #assuming that there are no offset values, these are the values
         state = self.data['options']
+        input_data = self.data['data']
 
         #column sizes (x)
         time_col = int(state['enable_hour_list']) + 1
 
         #row sizes (y)
-        title_row = int(state['enable_header'])
+        title_row = int(state['enable_header'] and input_data['header'] != '')
+        name_row = int(state['enable_name'] and input_data['name'] != '')
         day_row = int(state['enable_day'])
 
         self.start_cell = {
-            #days: x = time, y = title
-            "days": [time_col, title_row],
-            #time y = day+title
-            "time": [0, day_row + title_row],
-            #subject: x = time+1, y = day+title
-            "subject": [time_col, day_row + title_row]
+            #name: y = title
+            "name": [0, title_row],
+            #days: x = time, y = title + name
+            "days": [time_col, title_row + name_row],
+            #time y = day+title+name
+            "time": [0, day_row + title_row + name_row],
+            #subject: x = time+1, y = day+title+name
+            "subject": [time_col, day_row + title_row + name_row]
         }
     
     def set_col(self, a, b, width):
@@ -281,6 +279,20 @@ class ExcelWriter:
                     col_end, title, self.cell_format(self.preset['title']))
 
             self.set_row(self.row, self.cell_height) # sets row height
+
+    def write_name(self):
+        self.col = self.offset[0]
+        self.row = self.start_cell['name'][1] + self.offset[1]
+        name = self.data['data']['name']
+        enable_name = self.data['options']['enable_name']
+        col_end = self.col + len(self.schedule.day_list) + self.start_cell['days'][0] - 1
+
+        #print the name if it's enabled and has content
+        if name != '' and enable_name:
+            name = 'Schedule by: ' + self.data['data']['name']
+
+            self.sheet.merge_range(self.row, self.col, self.row, 
+                col_end, name, self.cell_format(self.preset['name']))
 
     def write_day(self):
         #return immediately if day is disabled
@@ -352,6 +364,8 @@ class ExcelWriter:
         self.row = self.start_cell['subject'][1] + self.offset[1]
         add_room = self.data['options']['enable_add_classroom']
 
+        print('FONT COLOR:', self.subj_font_color)
+
         #yields subject, col, row_start, row_end
         subject_list = self.get_subject(self.schedule.df.index)
         for subject in subject_list:
@@ -367,10 +381,11 @@ class ExcelWriter:
                 if add_room:
                     text.extend(room_txt)
 
-                self.sheet.merge_range(row_start, col, row_end, col, '')
+                self.sheet.merge_range(row_start, col, row_end, col, '', self.cell_format(['CENTER', 'WRAP',
+                        ['COLOR', self.subj_colors[str(cell_index[0])]]]))
+
                 self.sheet.write_rich_string(row_start, col, *text, self.cell_format(['CENTER', 'WRAP',
-                        ['COLOR', self.subj_colors[str(cell_index[0])]], 
-                        ['FONTCOLOR', self.subj_font_color]]))
+                        ['COLOR', self.subj_colors[str(cell_index[0])]]]))
  
     def get_subject(self, subjects):
         time_index = 0
@@ -464,8 +479,8 @@ def error(message = None):
         messagebox.showwarning('An error occured', message)
 
 def create_schedule():
-    sched = SchedMaker(json_data)
-    e = ExcelWriter(sched, json_data)
+    sched = SchedMaker(data)
+    e = ExcelWriter(sched, data)
 
 if __name__ == "__main__":
     create_schedule()
