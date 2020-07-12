@@ -34,20 +34,24 @@ class SchedMaker:
             time_list = []
             #loops through the cells and extracts the time range
             for time in self.df[chosen_time[0]]:
-                try:
-                    time = time.strip()
-                    time = time.split('-')
-                    time_list.extend(time)
-                except:
-                    return error(f'The time column ({chosen_time[0]}) has incorrect formatting\n'
-                            'Please check the file and try again.')
+                time_list.extend(self.strip_time(time))
 
         else:
             time_list = self.df[chosen_time[0]].to_list() + self.df[chosen_time[1]].to_list()             #PARAMETERS: FROM TIME, TO TIME (headers on excel) (/)
 
         self.time_list = self.time_sort(time_list) #sorts the time
         self.day_list = self.get_day_list(day_mode.upper())
-        return print(self.day_list, self.time_list, sep='\n')
+
+    def strip_time(self, time):
+        #strips concatenated time
+        try:
+            time = time.replace(' ', '')
+            time = time.split('-')
+            return time
+        except:
+            return error(f'The time column has incorrect formatting\n'
+                    'Please check the file and try again.')
+
 
     def get_day_list(self, mode):
         day_key = self.data['data']['day_key']
@@ -83,6 +87,17 @@ class SchedMaker:
         #removes duplicates
         t = list(set(t))
 
+        t = self.str_to_time(t)
+
+        #converts into datetime object and sort
+        t.sort()
+
+        #converts into string
+        t = self.time_to_str(t)
+        
+        return t
+
+    def str_to_time(self, t):
         '''
             These are all of the available time formats to recognize the time
             format of the input file. These are the list of time formats:
@@ -100,7 +115,7 @@ class SchedMaker:
         '''
         time_formats = [
             [re.compile(r'(?i:[pam]$)'), '%I:%M%p'], #Hi Pamela Figueroa
-            [re.compile(r'(?i:[0-9]?[a-zA-Z]$)'), '%H:%M']
+            [re.compile(r'(?i:\d+:\d+[^p^a^m]$)'), '%H:%M']
         ]
         format_matched = 0
 
@@ -115,20 +130,22 @@ class SchedMaker:
         #if nothing matched on all of the patterns
         if not format_matched:
             return error(f'The time column has incorrect formatting\n'
-                            'Please check the file and try again.') 
+                            'Please check the file and try again.')
+
 
         for i, time_in in enumerate(t):
             #adding 'm' for time formats (1:00p)
-            if t[i][-1] != 'm':
-                time_in += 'm'                                                                            #PARAMETER: added 'm' (8:00a -> 8:am) HARDCODED (/)
+            if t[i][-1] not in ['m', 'M'] and self.str_format == time_formats[0][1]:
+                time_in += 'm'                                                                        #PARAMETER: added 'm' (8:00a -> 8:am) HARDCODED (/)
             t[i] = datetime.strptime(time_in, self.str_format)
 
-        #converts into datetime object and sort
-        t.sort()
-        min_t, max_t = t[0].hour, t[-1].hour
-        t_range = max_t - min_t
+        return t
 
-        #converts into string
+    def time_to_str(self, t):
+        time_formats = [
+            [re.compile(r'(?i:[pam]$)'), '%I:%M%p'], #Hi Pamela Figueroa
+            [re.compile(r'(?i:[0-9]?[a-zA-Z]$)'), '%H:%M']
+        ]
         '''
             Data came from JSON
             Output_format possible values:
@@ -143,8 +160,9 @@ class SchedMaker:
             t[i] = time_in.strftime(self.output_str_format)                                             #Set to lower case PM -> pm (/)
             if data_desc[-1] == 'p': #selected time format is 12hr + a/p
                 t[i] = t[i][:-1].lower()
-        
+
         return t
+
 
 class ExcelWriter:
     def __init__(self, schedule, json_data):
@@ -163,6 +181,7 @@ class ExcelWriter:
         self.book.close()
 
     def write(self):
+        self.write_title()
         self.write_day()
         self.write_time()
         self.write_subject()
@@ -171,14 +190,40 @@ class ExcelWriter:
         self.format_list = {
             'BOLD': {'bold':True},
             'CENTER': {'align': 'center', 'valign': 'vcenter'},
-            'BORDER': {'border': 1}
+            'BORDER': {'border': 1},
+            'WRAP': {'text_wrap':True}
         }
         self.color = self.data['system_colors']
         self.subj_colors = self.data['data']['colors']
         self.subj_font_color = self.data['data']['font_color'].upper()
-        self.preset = {'header': [['COLOR', 'ACCENT_LIGHT'], 'BOLD', 'CENTER', 'BORDER']}
+        self.preset = {
+            'header': [['COLOR', 'ACCENT_LIGHT'], 'BOLD', 'CENTER', 'BORDER'],
+            'title': [['COLOR', 'BLACK'], ['FONTCOLOR', 'WHITE'], 'BOLD', 'CENTER', 'BORDER'],
+            'subject': ['BOLD'],
+            'room': [['SIZE', 9]]
+            }
         self.cell_height = 16
-        self.cell_width = 12
+        self.cell_width = 13
+
+        #sets a starting point when writing
+        #assuming that there are no offset values, these are the values
+        state = self.data['options']
+
+        #column sizes (x)
+        time_col = int(state['enable_hour_list']) + 1
+
+        #row sizes (y)
+        title_row = int(state['enable_header'])
+        day_row = int(state['enable_day'])
+
+        self.start_cell = {
+            #days: x = time, y = title
+            "days": [time_col, title_row],
+            #time y = day+title
+            "time": [0, day_row + title_row],
+            #subject: x = time+1, y = day+title
+            "subject": [time_col, day_row + title_row]
+        }
     
     def set_col(self, a, b, width):
         self.sheet.set_column(a, b ,width)
@@ -204,15 +249,15 @@ class ExcelWriter:
         #changes format into str
         format_list = order_list.copy()
         for index, x in enumerate(format_list):
-            print(x)
             if isinstance(x, list):
                 if x[0] == 'COLOR':
                     format_list[index] = {'fg_color': x[1]} if re.search(r'^#', x[1]) else {'fg_color': self.color[x[1]]}
                 elif x[0] == 'BORDER':
                     format_list[index] = self.border_format(x[1:]) #activates self.border_format if it's inputted as list
                 elif x[0] == 'FONTCOLOR':
-                    print(x[1])
                     format_list[index] = {'font_color': x[1]} if re.search(r'^#', x[1]) else {'font_color': self.color[x[1]]}
+                elif x[0] == 'SIZE':
+                    format_list[index] = {'font_size': x[1]}
             else:
                 format_list[index] = self.format_list[x] #searches through self.format list dict
 
@@ -223,59 +268,90 @@ class ExcelWriter:
 
         return self.book.add_format(x)
     
+    def write_title(self):
+        self.col = self.offset[0]
+        self.row = self.offset[1]
+        title = self.data['data']['header']
+        enable_title = self.data['options']['enable_header']
+        col_end = self.col + len(self.schedule.day_list) + self.start_cell['days'][0] - 1
+
+        #print if the title has content and it's enabled
+        if title != '' and enable_title:
+            self.sheet.merge_range(self.row, self.col, self.row, 
+                    col_end, title, self.cell_format(self.preset['title']))
+
+            self.set_row(self.row, self.cell_height) # sets row height
+
     def write_day(self):
-        self.col += 2
+        #return immediately if day is disabled
+        if not self.data['options']['enable_day']:
+            return
+
+        hour_enabled = self.data['options']['enable_hour_list']
+        self.col = self.start_cell['days'][0] + self.offset[0]
+        self.row = self.start_cell['days'][1] + self.offset[1]
+
         for i, day in enumerate(self.schedule.day_list):
             self.sheet.write(self.row, self.col + i, day, self.cell_format(self.preset['header']))
         else:
             self.set_col(self.col-1, self.col+i, self.cell_width)
 
-        self.row += 1
-        self.col -= 2
-
     def write_time(self):
+        self.col = self.start_cell['time'][0] + self.offset[0]
+        self.row = self.start_cell['time'][1] + self.offset[1]
+
+        #counts the number of cells to merge
         merge_n = 1
         start_cell = [0,0]
+
         #cell format
+        hour_enabled = self.data['options']['enable_hour_list']
         hour_format = self.cell_format([['COLOR', 'ACCENT_LIGHT'], 'BOLD', 'CENTER', ['BORDER', 'right']])
         even_color = self.cell_format([['COLOR', 'ACCENT_LIGHT'], 'CENTER', 'BORDER'])
         odd_color = self.cell_format([['COLOR', 'ACCENT_DARK'], 'CENTER', 'BORDER'])
         cell_switch = True #makes a coloring switch regardless of its position
 
+        self.col += int(hour_enabled)
+
         for i, time in enumerate(self.schedule.time_list):
             #writes the time
-            self.sheet.write(self.row, self.col+1, time, hour_format)
+            self.sheet.write(self.row, self.col, time, hour_format)
 
-            cell_color = even_color if cell_switch else odd_color
-            #write the hours
-            #detects if last hour matches current hr
-            if i != 0 and time[:2] == last_hr:
-                if merge_n == 1: #sets starting cell
-                    start_cell = [self.row-1, self.col]
-                merge_n +=1
+            #do all the code below if the hour_list is true
+            if hour_enabled:
+                cell_color = even_color if cell_switch else odd_color
+                #write the hours
+                #detects if last hour matches current hr
+                if i != 0 and time[:2] == last_hr:
+                    if merge_n == 1: #sets starting cell
+                        start_cell = [self.row-1, self.col-1]
+                    merge_n +=1
 
-            #writes hour time & switches the cell_color
-            elif i != 0 and merge_n == 1:
-                self.sheet.write_number(self.row-1, self.col, int(last_hr), cell_color)
-                cell_switch = not cell_switch
-            elif merge_n != 1:
-                self.sheet.merge_range(start_cell[0], start_cell[1], self.row-1, self.col, int(last_hr), cell_color)
-                cell_switch = not cell_switch
-                merge_n = 1
+                #writes hour time & switches the cell_color
+                elif i != 0 and merge_n == 1:
+                    self.sheet.write_number(self.row-1, self.col-1, int(last_hr), cell_color)
+                    cell_switch = not cell_switch
+                elif merge_n != 1:
+                    self.sheet.merge_range(start_cell[0], start_cell[1], self.row-1, self.col-1, int(last_hr), cell_color)
+                    cell_switch = not cell_switch
+                    merge_n = 1
+                last_hr = time[:2]
 
-            last_hr = time[:2]
-            self.set_row(self.row, self.cell_height) # sets row width
+            self.set_row(self.row, self.cell_height) # sets row height
             self.row += 1
         else:
             #write the time
-            if merge_n != 1:
-                self.sheet.merge_range(start_cell[0], start_cell[1], self.row-1, self.col, int(last_hr), cell_color)
-            else:
-                self.sheet.write_number(self.row-1, self.col, int(last_hr), cell_color)
+            if hour_enabled:
+                if merge_n != 1:
+                    self.sheet.merge_range(start_cell[0], start_cell[1], self.row-1, self.col-1, int(last_hr), cell_color)
+                else:
+                    self.sheet.write_number(self.row-1, self.col-1, int(last_hr), cell_color)
 
     def write_subject(self):
-        self.col += 2
-        self.row -= len(self.schedule.time_list)
+        self.col = self.start_cell['subject'][0] + self.offset[0]
+        self.row = self.start_cell['subject'][1] + self.offset[1]
+        add_room = self.data['options']['enable_add_classroom']
+
         #yields subject, col, row_start, row_end
         subject_list = self.get_subject(self.schedule.df.index)
         for subject in subject_list:
@@ -283,8 +359,18 @@ class ExcelWriter:
                 col = self.col + cell_index[1]
                 row_start = self.row + cell_index[2]
                 row_end = self.row + cell_index[3]
-                self.sheet.merge_range(row_start, col, row_end, col, cell_index[0], 
-                    self.cell_format(['CENTER', ['COLOR', self.subj_colors[cell_index[0]]], ['FONTCOLOR', self.subj_font_color]]))
+
+                #text
+                text = [self.cell_format(self.preset['subject']), cell_index[0]]
+                room_txt = [" "*15, self.cell_format(self.preset['room']), cell_index[4]]
+
+                if add_room:
+                    text.extend(room_txt)
+
+                self.sheet.merge_range(row_start, col, row_end, col, '')
+                self.sheet.write_rich_string(row_start, col, *text, self.cell_format(['CENTER', 'WRAP',
+                        ['COLOR', self.subj_colors[str(cell_index[0])]], 
+                        ['FONTCOLOR', self.subj_font_color]]))
  
     def get_subject(self, subjects):
         time_index = 0
@@ -297,57 +383,85 @@ class ExcelWriter:
             else:
                 continue
 
-            subj_time, subj_day = self.get_time_day(subject) #gets time and day
+            subj_time, subj_day, subj_room = self.get_time_day_room(subject) #gets time and day
 
             if isinstance(subj_time[0], list):
                 #if the subject has more than one time range.
                 #activates get_cell_coords on time range times
                 for index, time_range in enumerate(subj_time, start = 1):
-                    yield self.get_cell_coords(time_range, subj_day, subject, index)
+                    yield self.get_cell_coords(subject, time_range, subj_day, subj_room, index)
             else:
                 #if the subject only has one time range
-                yield self.get_cell_coords(subj_time, subj_day, subject)
+                yield self.get_cell_coords(subject, subj_time, subj_day, subj_room)
 
-        #formatting the columns
-        print('CURRENT POS (col, row)', end=': ')
-        print(self.col, self.row)
-
-    def get_cell_coords(self, time_range, day_list, subject, restrict_val = None):
+    def get_cell_coords(self, subject, time_range, day_list, room, restrict_val = None):
         #restrict control value
         val = 0
+
+        room = room if restrict_val == None else room[restrict_val-1]
+
         #loops through days in a week
         for col_index, day in enumerate(self.schedule.day_list):
             #activates if the day list is within that day (e.g. Monday in MWF)
             if self.schedule.regex_day(col_index, day_list):
                 val += 1
-                #adds 'm' if it ends on 'a/p'
-                if self.schedule.str_format == '%I:%M%p' and time_range[0][-1] in ['a', 'p']:
-                    time_range = [(time + 'm').upper() for time in time_range]
+
+                time_range = self.schedule.str_to_time(time_range)
+                time_range = self.schedule.time_to_str(time_range)
 
                 #improvised xor value
                 if restrict_val == None or (restrict_val != None and restrict_val == val):
                     #finds the time's correct cell coordinates by using list.index()                  
                     row_start = self.schedule.time_list.index(time_range[0])
                     row_end = self.schedule.time_list.index(time_range[1])
-                    yield subject, col_index, row_start, row_end     
 
-    def get_time_day(self, subject):
-        subj_time = [self.schedule.df.loc[subject][x + ' TIME'] for x in ['FROM', 'TO']]          #PARAMETERS: 'FROM TIME', 'TO TIME' (headers)
-        subj_day = self.schedule.df.loc[subject]['DAYS'] #gets class days                         #PARAMETER: DAYS (header on Excel)
+                    yield subject, col_index, row_start, row_end, room
 
+    def get_time_day_room(self, subject):
+        #time/day keys
+        time_keys = [self.data['data']['time_key_0'], self.data['data']['time_key_1']]
+        day_key = self.data['data']['day_key']
+        #sees if the 2nd time_key is included
+        twice_enabled = self.data['options']['enable_time_twice']
+        allowed = time_keys if twice_enabled else time_keys[:1] 
+
+        room_key = self.data['data']['room_key']
+        room_enabled = self.data['options']['enable_add_classroom']
+
+        subj_time = [self.schedule.df.loc[subject][key] for key in allowed]                        #PARAMETERS: 'FROM TIME', 'TO TIME' (headers) (/)
+        subj_day = self.schedule.df.loc[subject][day_key] #gets class days                         #PARAMETER: DAYS (header on Excel) (/)
+        subj_room = self.schedule.df.loc[subject][room_key] #gets the classroom
+
+        
         #activates if the subject has duplicate due to having different time/day/classroom
         if isinstance(subj_day, pd.core.series.Series): 
             subj_day = ''.join(subj_day)
-            subj_time = [[x,y] for x,y in zip(subj_time[0], subj_time[1])]
+            subj_room = subj_room.to_list()
+            if twice_enabled:
+                subj_time = [[x,y] for x,y in zip(subj_time[0], subj_time[1])]
+            else:
+                subj_time = subj_time[0].to_list()
+                subj_time = [[s] for s in subj_time]
 
-        return subj_time, subj_day
+        #checks if the time range is concatenated (in - out)
+        if not twice_enabled:
+            for i, time_range in enumerate(subj_time):
+                if isinstance(time_range, list):
+                    print('activated')
+                    for sub_range in time_range:
+                        subj_time[i] = self.schedule.strip_time(sub_range)
+
+                else:
+                    subj_time = self.schedule.strip_time(time_range)
+        return subj_time, subj_day, subj_room
 
 def error(message = None):
+    print('ERROR:', message)
     if message == None:
-        messagebox.showwarning('File not created', 'There is something wrong with the file.\n'
+        messagebox.showwarning('An error occured', 'There is something wrong with the file.\n'
                                                     'File is not created in the process')
     else:
-        messagebox.showwarning('File not created', message)
+        messagebox.showwarning('An error occured', message)
 
 def create_schedule():
     sched = SchedMaker(json_data)

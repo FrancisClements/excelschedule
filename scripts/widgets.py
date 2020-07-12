@@ -282,6 +282,7 @@ def write_data():
 
         json.dump(data, f, indent=4, sort_keys=True)
         f.truncate()
+    load_settings()
 
 load_settings()
 

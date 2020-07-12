@@ -141,7 +141,16 @@ class MainMenu(Frame):
         #reads excel using pandas
         xl_data = read_file(data['files']['input_file'])
         xl_keys = xl_data.columns.tolist()
-        xl_values = xl_data.values()
+
+        # checks if it's actually a schedule table
+        try:
+            xl_values = xl_data.values
+        except:
+            txt_var.set('The schedule data file is cannot be found\n'
+                        'Please check your file and try again')
+            self.bell()
+
+
         keyword = re.compile(r'(?i:time|subject|course)')
 
         #checks if the table has content
@@ -184,9 +193,6 @@ class MainMenu(Frame):
 class Options(Frame):
     def __init__(self, master = None):
         #read excel files using pandas
-        self.pd = read_file(data['files']['input_file'])
-        self.pd_headers = self.pd.keys().tolist()
-
         self.master = master
         self.frames = []
         self.colors = {}
@@ -197,7 +203,7 @@ class Options(Frame):
     def new(self):
         #Boolean States
         self.state = {}
-        for option in ['hour_list', 'header', 'name', 'time_twice', 'day']:
+        for option in ['hour_list', 'header', 'name', 'time_twice', 'day', 'add_classroom']:
             #value to true on hour list and header
             self.state[option] = BooleanVar(value = option not in ['name', 'time_twice'])
 
@@ -205,7 +211,8 @@ class Options(Frame):
         #Data Inputs (all empty)
         self.input_data = {}
         data_list = ['header', 'name', 'time_format', 'day_format', 
-                    'font_color', 'subject_key', 'time_key', 'day_key']
+                    'font_color', 'subject_key', 'time_key', 'day_key', 
+                    'room_key']
         for data_vars in data_list:
             if data_vars != 'time_key':
                 self.input_data[data_vars] = StringVar()
@@ -214,6 +221,9 @@ class Options(Frame):
                 self.input_data[data_vars] = [StringVar(), StringVar()]
 
     def render(self):
+        self.pd = read_file(data['files']['input_file'])
+        self.pd_headers = self.pd.keys().tolist()
+
         self.pack(fill = 'both', expand = 1, pady = 50, padx = 25)
         '''
         LAYOUT OF OPTIONS >>
@@ -227,7 +237,7 @@ class Options(Frame):
                     BUTTONS
                     
         '''
-        self.main_k.grid_config(pos = [(3,4), 'x'])
+        self.main_k.grid_config(pos = [(3,4), 2])
         #title/desc LEFT-----------------------------
         tl = self.main_k.label('Customize', theme = 'header')
         dl = self.main_k.label('Set up options to make your schedule look better')
@@ -283,7 +293,7 @@ class Options(Frame):
             data['data']['colors'][key] = val.get()
             print(key, ':', val.get())
 
-        # write_data()
+        write_data()
         create_schedule()
     
     def left_frame(self):
@@ -304,17 +314,26 @@ class Options(Frame):
         name_form = frame.entry(read_only = 1, limit = 30, 
                 textvariable = self.input_data['name'])
 
+        #Include Classroom
+        classroom = frame.checkbox('Include classroom along with the category',
+                    var = self.state['add_classroom'])
+        class_drop = frame.dropdown(self.pd_headers, 0, var = self.input_data['room_key'], 
+                    state = 'readonly', width = 22)
+
         frame.button('Process Data', cmd = self.get_data)
 
         #tooltip descriptions
         desc = [
             'Adds a list of hour time in your schedule\n' '(adds more organization)',
             'Add a header or title',
-            'Add your name to your schedule'
+            'Add your name to your schedule',
+            'Include the location of the classroom\n'
+                '(This is useful for subjects that have\n'
+                'different classrooms)'
         ]
 
         #listed self.state keys that uses an entry
-        entry_states = ['header', 'name']
+        entry_states = ['header', 'name', 'add_classroom']
         desc_index = 0
         for i, widget in enumerate(widgets):
             #if the widget is a checkbox
@@ -324,7 +343,6 @@ class Options(Frame):
                     widget.config(command = lambda x = self.state[entry_states[desc_index-1]],
                         y = widgets[i+1]: self.set_entry(x,y))
                     pad = [10,0]
-
                 else:
                     pad = [10,5]
                 #adds tooltip
@@ -442,12 +460,13 @@ class Options(Frame):
         frame.dropdown(font_colors, 0, var = self.input_data['font_color'], 
                 state = 'readonly', cmd = self.set_preview_color)
 
+
         #render for dropdown
-        frame.grid_config(pos = [[0,1], 2])
+        frame.grid_config(pos = [[0,1], 4])
         frame.widget_grid(widgets[0], pos = [0,0], padding = [10, (5,0)], snap = W)
         frame.widget_grid(widgets[1], pos = [0,1], padding = [10, 0], snap = W)
         frame.widget_grid(widgets[2], pos = [1,0], padding = [0, (5,0)], snap = NW)
-        frame.widget_grid(widgets[3], pos = [1,1], snap = NW)
+        frame.widget_grid(widgets[3], pos = [1,1], padding = [10, 0], snap = NW)
 
         self.make_color_menu(frame)
 
@@ -495,7 +514,7 @@ class Options(Frame):
                 colors.widget_grid(widget, pos = [i%4, i//4], snap = NW, padding = [0, 2])
 
         #renders the color menu
-        parent_root.widget_grid(c, pos = [0,2], padding = [10, (5,0)], 
+        parent_root.widget_grid(c, pos = [0,4], padding = [10, (5,0)], 
                         snap = NSEW, span = [2,1])
 
     def set_preview_color(self):
