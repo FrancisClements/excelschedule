@@ -44,24 +44,28 @@ class SchedMaker:
             return error(f'The time column has incorrect formatting\n'
                     'Please check the file and try again.')
 
-
     def get_day_list(self, mode):
-        day_key = self.data['data']['day_key']
-        self.week_list = {
-            'FULL': ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'],
-            'INITIAL': ['M', 'T', 'W', 'TH', 'F', 'S']
-        }
-        self.week_list['PARTIAL'] = [x[:3].upper() for x in self.week_list['FULL']] #Tuesday = Tue
-        word = ''.join(self.df[day_key])                                                               #PARAMETER: DAY (header) (/)
-        chosen_list = self.week_list[mode]
+        day_enabled = self.data['options']['enable_day']
 
-        #removes any excess days
-        for i in range(len(self.week_list['FULL'])):
-            re_filter = self.regex_day(i, word)
-            if not re_filter:
-                del chosen_list[i]
+        #gets only the day_list if it's enabled
+        if day_enabled:
+            day_key = self.data['data']['day_key']
+            self.week_list = {
+                'FULL': ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'],
+                'INITIAL': ['M', 'T', 'W', 'TH', 'F', 'S']
+            }
+            self.week_list['PARTIAL'] = [x[:3].upper() for x in self.week_list['FULL']] #Tuesday = Tue
+            word = ''.join(self.df[day_key])                                                               #PARAMETER: DAY (header) (/)
+            chosen_list = self.week_list[mode]
 
-        return chosen_list 
+            #removes any excess days
+            for i in range(len(self.week_list['FULL'])):
+                re_filter = self.regex_day(i, word)
+                if not re_filter:
+                    del chosen_list[i]
+
+            return chosen_list
+        return ['Mon - Fri']
 
     def regex_day(self, index, word):
         #returns list of subjects that is on that day.
@@ -201,16 +205,16 @@ class ExcelWriter:
 
         #sets a starting point when writing
         #assuming that there are no offset values, these are the values
-        state = self.data['options']
-        input_data = self.data['data']
+        self.state = self.data['options']
+        self.input_data = self.data['data']
 
         #column sizes (x)
-        time_col = int(state['enable_hour_list']) + 1
+        time_col = int(self.state['enable_hour_list']) + 1
 
         #row sizes (y)
-        title_row = int(state['enable_header'] and input_data['header'] != '')
-        name_row = int(state['enable_name'] and input_data['name'] != '')
-        day_row = int(state['enable_day'])
+        title_row = int(self.state['enable_header'] and self.input_data['header'] != '')
+        name_row = int(self.state['enable_name'] and self.input_data['name'] != '')
+        day_row = int(self.state['enable_day'])
 
         self.start_cell = {
             #name: y = title
@@ -269,12 +273,11 @@ class ExcelWriter:
     def write_title(self):
         self.col = self.offset[0]
         self.row = self.offset[1]
-        title = self.data['data']['header']
-        enable_title = self.data['options']['enable_header']
+        title = self.input_data['header']
         col_end = self.col + len(self.schedule.day_list) + self.start_cell['days'][0] - 1
 
         #print if the title has content and it's enabled
-        if title != '' and enable_title:
+        if title != '' and self.state['enable_header']:
             self.sheet.merge_range(self.row, self.col, self.row, 
                     col_end, title, self.cell_format(self.preset['title']))
 
@@ -283,8 +286,8 @@ class ExcelWriter:
     def write_name(self):
         self.col = self.offset[0]
         self.row = self.start_cell['name'][1] + self.offset[1]
-        name = self.data['data']['name']
-        enable_name = self.data['options']['enable_name']
+        name = self.input_data['name']
+        enable_name = self.state['enable_name']
         col_end = self.col + len(self.schedule.day_list) + self.start_cell['days'][0] - 1
 
         #print the name if it's enabled and has content
@@ -296,10 +299,10 @@ class ExcelWriter:
 
     def write_day(self):
         #return immediately if day is disabled
-        if not self.data['options']['enable_day']:
-            return
+        # if not self.state['enable_day']:
+        #     return
 
-        hour_enabled = self.data['options']['enable_hour_list']
+        hour_enabled = self.state['enable_hour_list']
         self.col = self.start_cell['days'][0] + self.offset[0]
         self.row = self.start_cell['days'][1] + self.offset[1]
 
@@ -317,7 +320,7 @@ class ExcelWriter:
         start_cell = [0,0]
 
         #cell format
-        hour_enabled = self.data['options']['enable_hour_list']
+        hour_enabled = self.state['enable_hour_list']
         hour_format = self.cell_format([['COLOR', 'ACCENT_LIGHT'], 'BOLD', 'CENTER', ['BORDER', 'right']])
         even_color = self.cell_format([['COLOR', 'ACCENT_LIGHT'], 'CENTER', 'BORDER'])
         odd_color = self.cell_format([['COLOR', 'ACCENT_DARK'], 'CENTER', 'BORDER'])
@@ -362,9 +365,7 @@ class ExcelWriter:
     def write_subject(self):
         self.col = self.start_cell['subject'][0] + self.offset[0]
         self.row = self.start_cell['subject'][1] + self.offset[1]
-        add_room = self.data['options']['enable_add_classroom']
-
-        print('FONT COLOR:', self.subj_font_color)
+        add_room = self.state['enable_add_classroom']
 
         #yields subject, col, row_start, row_end
         subject_list = self.get_subject(self.schedule.df.index)
@@ -378,14 +379,18 @@ class ExcelWriter:
                 text = [self.cell_format(self.preset['subject']), cell_index[0]]
                 room_txt = [" "*15, self.cell_format(self.preset['room']), cell_index[4]]
 
+                if row_start != row_end:
+                    self.sheet.merge_range(row_start, col, row_end, col, '', self.cell_format(['CENTER', 'WRAP',
+                            ['COLOR', self.subj_colors[str(cell_index[0])]]]))
+
                 if add_room:
                     text.extend(room_txt)
-
-                self.sheet.merge_range(row_start, col, row_end, col, '', self.cell_format(['CENTER', 'WRAP',
-                        ['COLOR', self.subj_colors[str(cell_index[0])]]]))
-
-                self.sheet.write_rich_string(row_start, col, *text, self.cell_format(['CENTER', 'WRAP',
-                        ['COLOR', self.subj_colors[str(cell_index[0])]]]))
+                    self.sheet.write_rich_string(row_start, col, *text, self.cell_format(['CENTER', 'WRAP',
+                            ['COLOR', self.subj_colors[str(cell_index[0])]]]))
+                else:
+                    self.sheet.write(row_start, col, text[1], self.cell_format(['BOLD', 'CENTER', 'WRAP',
+                            ['COLOR', self.subj_colors[str(cell_index[0])]], 
+                            ['FONTCOLOR', self.subj_font_color]]))
  
     def get_subject(self, subjects):
         time_index = 0
@@ -412,13 +417,13 @@ class ExcelWriter:
     def get_cell_coords(self, subject, time_range, day_list, room, restrict_val = None):
         #restrict control value
         val = 0
-
         room = room if restrict_val == None else room[restrict_val-1]
+        day_enabled = self.state['enable_day']
 
         #loops through days in a week
         for col_index, day in enumerate(self.schedule.day_list):
             #activates if the day list is within that day (e.g. Monday in MWF)
-            if self.schedule.regex_day(col_index, day_list):
+            if not day_enabled or self.schedule.regex_day(col_index, day_list):
                 val += 1
 
                 time_range = self.schedule.str_to_time(time_range)
@@ -426,7 +431,8 @@ class ExcelWriter:
 
                 #improvised xor value
                 if restrict_val == None or (restrict_val != None and restrict_val == val):
-                    #finds the time's correct cell coordinates by using list.index()                  
+                    #finds the time's correct cell coordinates by using list.index()
+                    #it automatically sets index to 0 if the day_list is disabled or it's not found
                     row_start = self.schedule.time_list.index(time_range[0])
                     row_end = self.schedule.time_list.index(time_range[1])
 
@@ -434,24 +440,29 @@ class ExcelWriter:
 
     def get_time_day_room(self, subject):
         #time/day keys
-        time_keys = [self.data['data']['time_key_0'], self.data['data']['time_key_1']]
-        day_key = self.data['data']['day_key']
+        time_keys = [self.input_data['time_key_0'], self.input_data['time_key_1']]
+        day_key = self.input_data['day_key']
+
+        #sees if days writing is enabled
+        day_enabled = self.state['enable_day']
+        
         #sees if the 2nd time_key is included
-        twice_enabled = self.data['options']['enable_time_twice']
+        twice_enabled = self.state['enable_time_twice']
         allowed = time_keys if twice_enabled else time_keys[:1] 
 
-        room_key = self.data['data']['room_key']
-        room_enabled = self.data['options']['enable_add_classroom']
+        room_key = self.input_data['room_key']
+        room_enabled = self.state['enable_add_classroom']
 
         subj_time = [self.schedule.df.loc[subject][key] for key in allowed]                        #PARAMETERS: 'FROM TIME', 'TO TIME' (headers) (/)
-        subj_day = self.schedule.df.loc[subject][day_key] #gets class days                         #PARAMETER: DAYS (header on Excel) (/)
-        subj_room = self.schedule.df.loc[subject][room_key] #gets the classroom
+        
+        subj_day = self.schedule.df.loc[subject][day_key] if day_enabled else ' ' #gets class days #PARAMETER: DAYS (header on Excel) (/)
+        subj_room = self.schedule.df.loc[subject][room_key] if room_enabled else '' #gets the classroom
 
         
         #activates if the subject has duplicate due to having different time/day/classroom
-        if isinstance(subj_day, pd.core.series.Series): 
+        if day_enabled and isinstance(subj_day, pd.core.series.Series): 
             subj_day = ''.join(subj_day)
-            subj_room = subj_room.to_list()
+            subj_room = subj_room.to_list() if room_enabled else ' '
             if twice_enabled:
                 subj_time = [[x,y] for x,y in zip(subj_time[0], subj_time[1])]
             else:
