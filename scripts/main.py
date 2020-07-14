@@ -514,6 +514,7 @@ class Options(Frame):
             widget.configure(state = sta)
  
     def get_data(self):
+        global data
         #Cleaning last-used data
         data['data'] = {}
         data['data']['colors'] = {}
@@ -544,7 +545,8 @@ class Options(Frame):
             data['data']['colors'][key] = val.get()
             print(key, ':', val.get())
 
-        write_data()
+        print('data @ main:', data)
+        write_data(data)
         try:
             create_schedule()
             self.next_frame()
@@ -648,8 +650,8 @@ class Program:
         print('current frame', self.frames[0])
         #prints the mainmenu
         if mode == 'test':
-            self.frames[1][2].render()
-            self.frames[0] = 2
+            self.frames[1][1].render()
+            self.frames[0] = 1
             pass
         else:
             self.frames[1][0].render()

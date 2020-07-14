@@ -1,35 +1,28 @@
 {
-    "_metadata": "07/12/2020 at 10:40PM",
+    "_metadata": "07/14/2020 at 03:09PM",
     "data": {
         "colors": {
-            "Homeroom": "#D289CD",
-            "Physics": "#EE9595",
-            "Math": "#CAC764",
-            "6DRAW2": "#646464",
-            "6DSALGO": "#619EB3",
-            "6UHCI": "#C38654",
-            "7PE3": "#53886E",
-            "9PHYSICS-A": "#7B5975"
+
         },
-        "day_format": "Partial",
-        "day_key": "Subject",
-        "font_color": "White",
-        "header": "Test: No Day Key",
+        "day_format": "",
+        "day_key": "",
+        "font_color": "",
+        "header": "",
         "name": "",
-        "room_key": "Subject",
-        "subject_key": "Subject",
-        "time_format": "12hr + AM/PM",
-        "time_key_0": "Time",
-        "time_key_1": "Subject"
+        "room_key": "",
+        "subject_key": "",
+        "time_format": "",
+        "time_key_0": "",
+        "time_key_1": ""
     },
     "files": {
-        "input_file": "E:/Downloads/lab/Book2.xlsx",
-        "output_file": "E:/Downloads/lab/test_day.xlsx"
+        "input_file": "",
+        "output_file": ""
     },
     "options": {
         "enable_add_classroom": false,
         "enable_day": false,
-        "enable_header": true,
+        "enable_header": false,
         "enable_hour_list": false,
         "enable_name": false,
         "enable_time_twice": false

@@ -272,13 +272,21 @@ def load_settings():
         for key, val in zip(data[var], data[var].values()):
             globals()[key] = val
 
-def write_data():
+def write_data(input_data = None):
+    global data
     filename = 'settings.json'
+    print('data before open():\n', data)
+
+    if input_data != None:
+        data = input_data
+
+
     with open(filename, 'w') as f:
         #timestamp
         now = dt.today()
         str_format = '%m/%d/%Y at %I:%M%p'
         data['_metadata'] = now.strftime(str_format)
+        print('data during open():\n', data)
 
         json.dump(data, f, indent=4, sort_keys=True)
         f.truncate()
