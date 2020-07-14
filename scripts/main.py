@@ -237,7 +237,7 @@ class Options(Frame):
                     BUTTONS
                     
         '''
-        self.main_k.grid_config(pos = [(3,4), 2])
+        self.main_k.grid_config(pos = [(2,4), 2])
         #title/desc LEFT-----------------------------
         tl = self.main_k.label('Customize', theme = 'header')
         dl = self.main_k.label('Set up options to make your schedule look better')
@@ -336,21 +336,22 @@ class Options(Frame):
 
         #widgets
         #day
-        frame.label('Day Format') #e.g. Mon, Monday, M
-        frame.dropdown(day_formats, 1, var = self.input_data['day_format'], 
-                        state = 'readonly')
-        frame.label('Set Column (Day)') #e.g. Mon, Monday, M
-        day_box = frame.checkbox('My subjects have different\n' 'schedule on other days', 
-                        var = self.state['day'])
+        day_box = frame.checkbox('Add Day Format', var = self.state['day']) #e.g. Mon, Monday, M
+
         frame.dropdown(self.pd_headers, 1, var = self.input_data['day_key'], 
                         state = 'readonly', width = 15)
+        frame.label('(COLUMN)')
+
+        frame.dropdown(day_formats, 1, var = self.input_data['day_format'], 
+                        state = 'readonly', width = 15)
+        frame.label('(FORMAT)') #e.g. Mon, Monday, M
+
         #time
         frame.label('Time Format')
         frame.dropdown(time_formats, 0, var = self.input_data['time_format'],
-                        state = 'readonly')
+                        state = 'readonly', width = 15)
 
-        frame.label('Set Column (Time)')
-        time_box = frame.checkbox('I need 2 columns to set time', var = self.state['time_twice'])
+        time_box = frame.checkbox('I need 2 columns to set it', var = self.state['time_twice'])
         #in and out dropdowns
         frame.dropdown(self.pd_headers, 0, var = self.input_data['time_key'][0],
                         state = 'readonly', width = 15)
@@ -361,22 +362,29 @@ class Options(Frame):
 
         #2 columns checkbox command configure
         day_box.config(command = lambda x = self.state['day'],
-                        y = widgets[4]: self.set_entry(x,y, del_ = 0))
+                        y = widgets[1:5]: self.set_entry(x,y, del_ = 0))
         time_box.config(command = lambda x = self.state['time_twice'],
                         y = widgets[-2:]: self.set_entry(x,y, del_ = 0))
  
 
         #tooltip descriptions
         desc = [
-            'Sets the day formatting\n' '(e.g. M/Mon/Monday)',
             'Set the column that corresponds\n' 'to the days of subject attending',
+            'Sets the day formatting\n' '(e.g. M/Mon/Monday)',
+
             'Sets the time formatting\n' '(e.g. 1:00PM/1:00p/13:00)',
             'Set the column that corresponds\n' 
-                'to the time of subject attending\n\n'
-                'If there are 2 separate columns to set,\n' 
-                '(i.e. "time in" and "time out"),\n' 'check the box',
+                'to the time of subject attending'
         ]
-        desc_index = 0
+        #descriptions for checkboxes
+        chk_desc = [
+            'Enable day formatting',
+            'If there are 2 separate\n' 'columns on your file,\n' 
+                '(i.e. columns "time in" and "time out"),\n' 'check this box'
+        ]
+
+        #index 0 = desc, index 1 = chk_desc
+        desc_index = [0,0]
 
         #fixing spacing of the widgets + render
         for i, widget in enumerate(widgets):
@@ -390,13 +398,16 @@ class Options(Frame):
                 pad[1] = (20,0) if i == 5 else (5,0)
                 #tooltip
                 if i <= 8:
-                    tooltip(widget, desc[desc_index])
-                    desc_index += 1
+                    tooltip(widget, desc[desc_index[0]])
+                    desc_index[0] += 1
 
             elif isinstance(widget, ttk.Checkbutton):
                 #padding and span for checkbuttons
                 pad = [15,0]
                 sp = [2,1]
+                #tooltip
+                tooltip(widget, desc[desc_index[1]])
+                desc_index[1] += 1
             elif isinstance(widget, ttk.Combobox) and widget['width'] < 18:
                 #padding for dropdown menus that has short width
                 #short width = indent
@@ -404,9 +415,9 @@ class Options(Frame):
             else:
                 pad = [10,0]
 
-            if i >= 8 and isinstance(widget, ttk.Label):
+            if isinstance(widget, ttk.Label) and widget['text'][0] == '(':
                 #render labels 'timein & timeout' at the side
-                frame.widget_grid(widget, pos = [1,i-1])
+                frame.widget_grid(widget, pos = [1,i-1], padding = [5, pad[1]])
             else:
                 frame.widget_grid(widget, pos = [0,i], padding = pad, snap = W, span = sp)
         return f
