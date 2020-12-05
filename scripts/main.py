@@ -666,7 +666,6 @@ class Program:
             pass
         else:
             self.frames[1][0].render()
-        print('new frame', self.frames[0])
 
         #main loop of the program
         self.root.mainloop() 

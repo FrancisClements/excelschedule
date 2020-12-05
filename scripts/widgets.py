@@ -258,6 +258,7 @@ def load_settings():
     global data
     filename = 'settings.json'
     #checks if the file exists (required)
+    print(__file__)
     if not os.path.isfile(filename):
         raise Exception('JSON file is missing.')
 
