@@ -1,37 +1,29 @@
 {
-    "_metadata": "12/15/2020 at 06:30PM",
+    "_metadata": "12/04/2020 at 09:45PM",
     "data": {
-        "colors": {
-            "3DANI": "#e6e6e6",
-            "ADV2D": "#e6e6e6",
-            "GRAPHICS": "#e6e6e6",
-            "INFOMAN": "#e6e6e6",
-            "INTROGAME": "#e6e6e6",
-            "READPHILHIS": "#e6e6e6",
-            "THEOLOGY": "#e6e6e6"
-        },
-        "day_format": "Partial",
-        "day_key": "DAYS",
-        "font_color": "Black",
+        "colors": {},
+        "day_format": "",
+        "day_key": "",
+        "font_color": "",
         "header": "",
         "name": "",
-        "room_key": "SUBJECT",
-        "subject_key": "SUBJECT",
-        "time_format": "12hr + AM/PM",
-        "time_key_0": "FROM TIME",
-        "time_key_1": "TO TIME"
+        "room_key": "",
+        "subject_key": "",
+        "time_format": "",
+        "time_key_0": "",
+        "time_key_1": ""
     },
     "files": {
-        "input_file": "E:/Desktop/projects/Others/School/202_2ndsem.xlsx",
-        "output_file": "E:/Desktop/projects/Others/School/sadfas.xlsx"
+        "input_file": "",
+        "output_file": ""
     },
     "options": {
         "enable_add_classroom": false,
-        "enable_day": true,
+        "enable_day": false,
         "enable_header": false,
-        "enable_hour_list": true,
+        "enable_hour_list": false,
         "enable_name": false,
-        "enable_time_twice": true
+        "enable_time_twice": false
     },
     "system_colors": {
         "ACCENT_DARK": "#bfbfbf",
