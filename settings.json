@@ -1,0 +1,62 @@
+{
+    "_metadata": "12/15/2020 at 06:30PM",
+    "data": {
+        "colors": {
+            "3DANI": "#e6e6e6",
+            "ADV2D": "#e6e6e6",
+            "GRAPHICS": "#e6e6e6",
+            "INFOMAN": "#e6e6e6",
+            "INTROGAME": "#e6e6e6",
+            "READPHILHIS": "#e6e6e6",
+            "THEOLOGY": "#e6e6e6"
+        },
+        "day_format": "Partial",
+        "day_key": "DAYS",
+        "font_color": "Black",
+        "header": "",
+        "name": "",
+        "room_key": "SUBJECT",
+        "subject_key": "SUBJECT",
+        "time_format": "12hr + AM/PM",
+        "time_key_0": "FROM TIME",
+        "time_key_1": "TO TIME"
+    },
+    "files": {
+        "input_file": "E:/Desktop/projects/Others/School/202_2ndsem.xlsx",
+        "output_file": "E:/Desktop/projects/Others/School/sadfas.xlsx"
+    },
+    "options": {
+        "enable_add_classroom": false,
+        "enable_day": true,
+        "enable_header": false,
+        "enable_hour_list": true,
+        "enable_name": false,
+        "enable_time_twice": true
+    },
+    "system_colors": {
+        "ACCENT_DARK": "#bfbfbf",
+        "ACCENT_LIGHT": "#d9d9d9",
+        "BLACK": "#000000",
+        "DARK_GREY": "#474747",
+        "LIGHT_GREY1": "#e6e6e6",
+        "LIGHT_GREY2": "#e0e0e0",
+        "RED": "#bd3333",
+        "WHITE": "#ffffff"
+    },
+    "widget_settings": {
+        "BUTTON_SIZE": {
+            "default": {
+                "x": 15,
+                "y": 5
+            },
+            "form": {
+                "x": 0,
+                "y": 0
+            }
+        },
+        "FONT_SIZE": {
+            "default": 9,
+            "header": 18
+        }
+    }
+}

@@ -406,9 +406,11 @@ class ExcelWriter:
             subj_time, subj_day, subj_room = self.get_time_day_room(subject) #gets time and day
 
             if isinstance(subj_time[0], list):
+                print(subj_time, subj_day, subj_room)
                 #if the subject has more than one time range.
                 #activates get_cell_coords on time range times
                 for index, time_range in enumerate(subj_time, start = 1):
+                    print(index)
                     yield self.get_cell_coords(subject, time_range, subj_day, subj_room, index)
             else:
                 #if the subject only has one time range
@@ -417,7 +419,7 @@ class ExcelWriter:
     def get_cell_coords(self, subject, time_range, day_list, room, restrict_val = None):
         #restrict control value
         val = 0
-        room = room if restrict_val == None else room[restrict_val-1]
+        room = room if restrict_val == None or not self.state['enable_add_classroom'] else room[restrict_val-1]
         day_enabled = self.state['enable_day']
 
         #loops through days in a week

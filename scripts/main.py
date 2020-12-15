@@ -558,11 +558,12 @@ class Options(Frame):
 
         print('data @ main:', data)
         write_data(data)
-        try:
-            create_schedule()
-            self.next_frame()
-        except:
-            error()
+        # try:
+        create_schedule()
+        self.next_frame()
+        # except Exception as e:
+        #     print(e)
+        #     error(e)
  
     def next_frame(self):
         self.master_cls.next_frame()
@@ -666,7 +667,6 @@ class Program:
             pass
         else:
             self.frames[1][0].render()
-        print('new frame', self.frames[0])
 
         #main loop of the program
         self.root.mainloop() 
