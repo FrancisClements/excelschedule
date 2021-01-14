@@ -5,6 +5,9 @@ from datetime import datetime
 from tkinter import messagebox
 from widgets import *
 
+#debugging
+import inspect, itertools
+
 class SchedMaker:
     def __init__(self, json_data):
         #read the JSON
@@ -335,13 +338,13 @@ class ExcelWriter:
             #do all the code below if the hour_list is true
             if hour_enabled:
                 cell_color = even_color if cell_switch else odd_color
+
                 #write the hours
                 #detects if last hour matches current hr
                 if i != 0 and time[:2] == last_hr:
                     if merge_n == 1: #sets starting cell
                         start_cell = [self.row-1, self.col-1]
                     merge_n +=1
-
                 #writes hour time & switches the cell_color
                 elif i != 0 and merge_n == 1:
                     self.sheet.write_number(self.row-1, self.col-1, int(last_hr), cell_color)
@@ -350,12 +353,13 @@ class ExcelWriter:
                     self.sheet.merge_range(start_cell[0], start_cell[1], self.row-1, self.col-1, int(last_hr), cell_color)
                     cell_switch = not cell_switch
                     merge_n = 1
-                last_hr = time[:2]
-
+                last_hr = time[:2]       
+                
             self.set_row(self.row, self.cell_height) # sets row height
             self.row += 1
         else:
             #write the time
+            cell_color = even_color if cell_switch else odd_color
             if hour_enabled:
                 if merge_n != 1:
                     self.sheet.merge_range(start_cell[0], start_cell[1], self.row-1, self.col-1, int(last_hr), cell_color)
@@ -406,39 +410,38 @@ class ExcelWriter:
             subj_time, subj_day, subj_room = self.get_time_day_room(subject) #gets time and day
 
             if isinstance(subj_time[0], list):
-                print(subj_time, subj_day, subj_room)
                 #if the subject has more than one time range.
                 #activates get_cell_coords on time range times
-                for index, time_range in enumerate(subj_time, start = 1):
-                    print(index)
-                    yield self.get_cell_coords(subject, time_range, subj_day, subj_room, index)
+                for index, (t, d, r) in enumerate(zip(subj_time, subj_day, subj_room), start = 1):
+                    yield self.get_cell_coords(subject, t, d, r)
             else:
                 #if the subject only has one time range
                 yield self.get_cell_coords(subject, subj_time, subj_day, subj_room)
 
-    def get_cell_coords(self, subject, time_range, day_list, room, restrict_val = None):
-        #restrict control value
-        val = 0
-        room = room if restrict_val == None or not self.state['enable_add_classroom'] else room[restrict_val-1]
+    #revise this. the code is repeating. you should make it into a single loop, calling the coords. instead having 2 loops.
+    #this is redundant.
+    def get_cell_coords(self, subject, time_range, day_list, room):
+        print('Arguments:', subject, time_range, day_list, room)
         day_enabled = self.state['enable_day']
 
         #loops through days in a week
         for col_index, day in enumerate(self.schedule.day_list):
             #activates if the day list is within that day (e.g. Monday in MWF)
             if not day_enabled or self.schedule.regex_day(col_index, day_list):
-                val += 1
 
+                #converts time from Excel into selected time format
                 time_range = self.schedule.str_to_time(time_range)
                 time_range = self.schedule.time_to_str(time_range)
 
-                #improvised xor value
-                if restrict_val == None or (restrict_val != None and restrict_val == val):
-                    #finds the time's correct cell coordinates by using list.index()
-                    #it automatically sets index to 0 if the day_list is disabled or it's not found
-                    row_start = self.schedule.time_list.index(time_range[0])
-                    row_end = self.schedule.time_list.index(time_range[1])
+                #finds the time's correct cell coordinates by using list.index()
+                #it automatically sets index to 0 if the day_list is disabled or it's not found
+                row_start = self.schedule.time_list.index(time_range[0])
+                row_end = self.schedule.time_list.index(time_range[1])
+                print('--',col_index, (row_start, row_end), subject, time_range)
 
-                    yield subject, col_index, row_start, row_end, room
+                yield subject, col_index, row_start, row_end, room
+
+        print()
 
     def get_time_day_room(self, subject):
         #time/day keys
@@ -463,7 +466,7 @@ class ExcelWriter:
         
         #activates if the subject has duplicate due to having different time/day/classroom
         if day_enabled and isinstance(subj_day, pd.core.series.Series): 
-            subj_day = ''.join(subj_day)
+            subj_day = subj_day.to_list()
             subj_room = subj_room.to_list() if room_enabled else ' '
             if twice_enabled:
                 subj_time = [[x,y] for x,y in zip(subj_time[0], subj_time[1])]

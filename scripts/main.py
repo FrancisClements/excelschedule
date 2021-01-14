@@ -556,7 +556,6 @@ class Options(Frame):
             data['data']['colors'][key] = val.get()
             print(key, ':', val.get())
 
-        print('data @ main:', data)
         write_data(data)
         # try:
         create_schedule()
