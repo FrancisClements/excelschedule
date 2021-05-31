@@ -14,11 +14,15 @@ class MainMenu(Frame):
         self.master_cls = master
         self.main_k = Kinter(self)
         self.allow_next = 0
+        self.rendered = 0
         super().__init__(self.master_cls.root)
 
         # self.configure(bg = 'blue')
 
     def render(self):
+        if self.rendered:
+            self.pack(fill = 'both', expand = 1, pady = 50, padx = 20)
+            return
         #clears the data files from JSON
         data['files']['input_file'] = ''
 
@@ -27,6 +31,7 @@ class MainMenu(Frame):
         self.title()
         self.file_form()
         self.next_warning()
+        self.rendered = 1
 
     def title(self):
         #frame of the widgets
@@ -196,6 +201,7 @@ class Options(Frame):
         self.master_cls = master
         self.frames = []
         self.colors = {}
+        self.rendered = 0
         self.main_k = Kinter(self, self.frames)
         super().__init__(master.root)
         self.new()
@@ -221,6 +227,10 @@ class Options(Frame):
                 self.input_data[data_vars] = [StringVar(), StringVar()]
 
     def render(self):
+        if self.rendered:
+            self.pack(fill = 'both', expand = 1, pady = 50, padx = 20)
+            return
+
         self.pd = read_file(data['files']['input_file'])
         self.pd_headers = self.pd.keys().tolist()
 
@@ -256,12 +266,16 @@ class Options(Frame):
         tr = self.main_k.label('Color Selection', theme = 'header')
         dr = self.main_k.label('Pick a color of your choice that corresponds to your subject\n'
                 'Selected colors WILL NOT BE SAVED if you change the category.')
+        
         self.main_k.widget_grid(tr, pos = [4,0], padding = [5,0], snap = W)
         self.main_k.widget_grid(dr, pos = [4,1], padding = [15,0], snap = NW)
                     
         #color selection----------------------------
         self.main_k.widget_grid(self.color_frame(), pos = [4,2], snap = NSEW)
-    
+
+        #makes sure that it rendered successfully
+        self.rendered = 1
+
     def left_frame(self):
         str_format = re.compile(r'[\\/:\:\?><\|\*]')
         widgets = []
@@ -286,11 +300,11 @@ class Options(Frame):
         class_drop = frame.dropdown(self.pd_headers, 0, var = self.input_data['room_key'], 
                     state = 'readonly', width = 22)
 
-        frame.button('Create Schedule', cmd = self.get_data)
+        frame.button('Back', cmd = self.prev_frame)
 
         #tooltip descriptions
         desc = [
-            'Adds a list of hour time in your schedule\n' '(adds more organization)',
+            'Adds a list of hours for your schedule\n' '(adds more organization)',
             'Add a header or title',
             'Add your name to your schedule',
             'Include a description of the subject\n'
@@ -369,12 +383,12 @@ class Options(Frame):
 
         #tooltip descriptions
         desc = [
-            'Set the column that corresponds\n' 'to the days of subject attending',
+            'Set the column that corresponds\n' 'the days of the subject',
             'Sets the day formatting\n' '(e.g. M/Mon/Monday)',
 
             'Sets the time formatting\n' '(e.g. 1:00PM/1:00p/13:00)',
             'Set the column that corresponds\n' 
-                'to the time of subject attending'
+                'the time of the subject'
         ]
         #descriptions for checkboxes
         chk_desc = [
@@ -471,7 +485,7 @@ class Options(Frame):
                 continue
 
             self.colors[subject] = StringVar(value = LIGHT_GREY1)
-            #limits number of characters to 10.
+            #limits number of characters to 12.
             if isinstance(subject, str) and len(subject) > char_limit:
                 cut_subject = subject[:char_limit] + '...'
                 tooltip(colors.label(cut_subject), subject)
@@ -493,9 +507,15 @@ class Options(Frame):
             else:
                 colors.widget_grid(widget, pos = [i%4, i//4], snap = W, padding = [0, 2])
 
+
+        #create Schedule
+        create_sched = colors.button('Create Schedule', cmd = self.get_data)
+        colors.widget_grid(create_sched, pos = [0,5], snap = W, span = [2,1], padding = [0,25])
+
         #renders the color menu
         parent_root.widget_grid(c, pos = [0,4], padding = [10, (5,0)], 
                         snap = NSEW, span = [2,1])
+                        
 
     def set_preview_color(self):
         for widget in self.color_widgets:
@@ -566,6 +586,9 @@ class Options(Frame):
  
     def next_frame(self):
         self.master_cls.next_frame()
+
+    def prev_frame(self):
+        self.master_cls.prev_frame()
 
 
 class Finish(Frame):
@@ -654,6 +677,12 @@ class Program:
         self.frames[0] += 1
         self.frames[1][self.frames[0]].render()
 
+    def prev_frame(self):
+        #hides the current frame, shows the previous frame
+        self.frames[1][self.frames[0]].pack_forget()
+        self.frames[0] -= 1
+        self.frames[1][self.frames[0]].render()
+
     def exit(self):
         self.root.destroy()
 
@@ -661,8 +690,8 @@ class Program:
         print('current frame', self.frames[0])
         #prints the mainmenu
         if mode == 'test':
-            self.frames[1][1].render()
-            self.frames[0] = 1
+            self.frames[1][0].render()
+            self.frames[0] = 0
             pass
         else:
             self.frames[1][0].render()

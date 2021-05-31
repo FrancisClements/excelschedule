@@ -195,6 +195,14 @@ class ExcelWriter:
         }
         self.color = self.data['system_colors']
         self.subj_colors = self.data['data']['colors']
+
+        #makes sure that all keys are string, not a number
+        new_colors = {}
+        for key, val in self.subj_colors.items():
+                new_colors[str(key)] = val
+
+        self.subj_colors = new_colors
+
         self.subj_font_color = self.data['data']['font_color'].upper()
         self.preset = {
             'header': [['COLOR', 'ACCENT_LIGHT'], 'BOLD', 'CENTER', 'BORDER'],
@@ -417,9 +425,7 @@ class ExcelWriter:
             else:
                 #if the subject only has one time range
                 yield self.get_cell_coords(subject, subj_time, subj_day, subj_room)
-
-    #revise this. the code is repeating. you should make it into a single loop, calling the coords. instead having 2 loops.
-    #this is redundant.
+                
     def get_cell_coords(self, subject, time_range, day_list, room):
         print('Arguments:', subject, time_range, day_list, room)
         day_enabled = self.state['enable_day']

@@ -167,7 +167,7 @@ class Kinter:
                 picker.config(background = fill)
 
         #colorpicker uses Label, not ttk.Label. Thay are different
-        picker = Label(self.root, text = 'A', fg = color, bg = fill, 
+        picker = Label(self.root, text = 'Aa', fg = color, bg = fill, 
                 width = 5, relief = 'solid', bd = 1, pady = 5)
         picker.bind('<Button-1>', clicked)
         return self.add_to_list(picker)
