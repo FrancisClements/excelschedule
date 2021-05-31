@@ -1,5 +1,5 @@
 {
-    "_metadata": "05/31/2021 at 09:07PM",
+    "_metadata": "05/31/2021 at 10:22PM",
     "data": {
         "colors": {
             "2064": "#e6e6e6",
@@ -24,7 +24,7 @@
     },
     "files": {
         "input_file": "E:/Desktop/projects/programming/PYTHON/fun/schedule/scripts/sched_tbl.xlsx",
-        "output_file": "E:/Desktop/projects/programming/PYTHON/fun/schedule/scripts/tester.xlsx"
+        "output_file": "E:/Desktop/projects/programming/PYTHON/fun/schedule/scripts/test.xlsx"
     },
     "options": {
         "enable_add_classroom": false,
