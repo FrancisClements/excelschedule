@@ -1,38 +1,30 @@
 {
-    "_metadata": "05/31/2021 at 10:22PM",
+    "_metadata": "",
     "data": {
         "colors": {
-            "2064": "#e6e6e6",
-            "2065": "#e6e6e6",
-            "2066": "#e6e6e6",
-            "2067": "#e6e6e6",
-            "2068": "#e6e6e6",
-            "2069": "#e6e6e6",
-            "2070": "#e6e6e6",
-            "9211": "#e6e6e6"
         },
         "day_format": "Partial",
-        "day_key": "DAYS",
+        "day_key": "TIME",
         "font_color": "Black",
         "header": "",
         "name": "",
-        "room_key": "CLASS CODE",
-        "subject_key": "CLASS CODE",
+        "room_key": "SUBJECT",
+        "subject_key": "SUBJECT",
         "time_format": "12hr + AM/PM",
-        "time_key_0": "FROM TIME",
-        "time_key_1": "TO TIME"
+        "time_key_0": "TIME",
+        "time_key_1": "SUBJECT"
     },
     "files": {
-        "input_file": "E:/Desktop/projects/programming/PYTHON/fun/schedule/scripts/sched_tbl.xlsx",
-        "output_file": "E:/Desktop/projects/programming/PYTHON/fun/schedule/scripts/test.xlsx"
+        "input_file": "",
+        "output_file": ""
     },
     "options": {
         "enable_add_classroom": false,
-        "enable_day": true,
+        "enable_day": false,
         "enable_header": false,
         "enable_hour_list": false,
         "enable_name": false,
-        "enable_time_twice": true
+        "enable_time_twice": false
     },
     "system_colors": {
         "ACCENT_DARK": "#bfbfbf",
